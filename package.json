@@ -1,0 +1,25 @@
+{
+  "name": "vision-builder-gas",
+  "version": "1.0.0",
+  "description": "Google Apps Script project for Vision Builder",
+  "main": "Code.js",
+  "scripts": {
+    "lint": "eslint *.js",
+    "lint:fix": "eslint *.js --fix",
+    "lint:check": "eslint *.js --format=compact"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-google": "^0.14.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "keywords": [
+    "google-apps-script",
+    "gas",
+    "javascript"
+  ],
+  "author": "",
+  "license": "MIT"
+}

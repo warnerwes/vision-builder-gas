@@ -29,7 +29,7 @@ function api_bootstrap() {
   // saved picks
   const myValueSelections = readRows_(SHEET_IDS.ValueSelections)
     .filter(s => s.userId === me.id && classIds.includes(s.classId))
-    .map(s => ({ classId: s.classId, valueId: s.valueId, coinWeight: Number(s.coinWeight||0) }));
+    .map(s => ({ classId: s.classId, valueId: s.valueId, coinWeight: Number(s.coinWeight || 0) }));
 
   const myMissionSelections = readRows_(SHEET_IDS.MissionSelections)
     .filter(s => s.userId === me.id && classIds.includes(s.classId))
@@ -47,19 +47,19 @@ function api_bootstrap() {
 function api_saveVision(payload){
   ensureVisionSheet_();
   const email = getCurrentUserEmail();
-  if (!email) throw new Error('No identity.');
-  const me = readRows_(SHEET_IDS.Users).find(u => (u.email||'').toLowerCase()===email.toLowerCase());
-  if (!me) throw new Error('User not registered.');
+  if (!email) {throw new Error('No identity.');}
+  const me = readRows_(SHEET_IDS.Users).find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+  if (!me) {throw new Error('User not registered.');}
 
   const { classId, text } = payload || {};
-  if (!classId) throw new Error('classId required.');
+  if (!classId) {throw new Error('classId required.');}
 
   // must be enrolled
-  const ok = readRows_(SHEET_IDS.Enrollments).some(e => e.classId===classId && e.userId===me.id);
-  if (!ok) throw new Error('Not enrolled in this class.');
+  const ok = readRows_(SHEET_IDS.Enrollments).some(e => e.classId === classId && e.userId === me.id);
+  if (!ok) {throw new Error('Not enrolled in this class.');}
 
   updateOrInsert_(SHEET_IDS.VisionTexts, ['userId','classId'], {
-    id: uid_(), userId: me.id, classId, text: String(text||''), updatedAt: new Date().toISOString()
+    id: uid_(), userId: me.id, classId, text: String(text || ''), updatedAt: new Date().toISOString(),
   });
   return { ok:true };
 }
@@ -68,17 +68,17 @@ function api_saveVision(payload){
 // Replace api_upsertValueSelection with this batch version
 function api_upsertValueSelection(payload){
   const email = getCurrentUserEmail();
-  if (!email) throw new Error('No identity.');
+  if (!email) {throw new Error('No identity.');}
   const users = readRows_(SHEET_IDS.Users);
-  const me = users.find(u => (u.email||'').toLowerCase() === email.toLowerCase());
-  if (!me) throw new Error('User not registered.');
+  const me = users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+  if (!me) {throw new Error('User not registered.');}
 
   const { classId, selections } = payload || {};
-  if (!classId || !Array.isArray(selections)) throw new Error('Bad payload.');
+  if (!classId || !Array.isArray(selections)) {throw new Error('Bad payload.');}
 
   // must be enrolled
-  const inClass = readRows_(SHEET_IDS.Enrollments).some(e => e.classId===classId && e.userId===me.id);
-  if (!inClass) throw new Error('Not enrolled in this class.');
+  const inClass = readRows_(SHEET_IDS.Enrollments).some(e => e.classId === classId && e.userId === me.id);
+  if (!inClass) {throw new Error('Not enrolled in this class.');}
 
   // active GLOBAL values set
   const values = readRows_(SHEET_IDS.Values)
@@ -88,20 +88,20 @@ function api_upsertValueSelection(payload){
   // validate + clamp
   const seen = new Set(); let sum = 0;
   const cleaned = selections.map(s => {
-    const valueId = String(s.valueId||'').trim();
-    const coinWeight = Math.max(0, Math.min(5, Number(s.coinWeight||0)));
-    if (!valueId || !allowed.has(valueId)) throw new Error('Unknown value.');
-    if (seen.has(valueId)) throw new Error('Duplicate value.');
+    const valueId = String(s.valueId || '').trim();
+    const coinWeight = Math.max(0, Math.min(5, Number(s.coinWeight || 0)));
+    if (!valueId || !allowed.has(valueId)) {throw new Error('Unknown value.');}
+    if (seen.has(valueId)) {throw new Error('Duplicate value.');}
     seen.add(valueId); sum += coinWeight;
     return { id: uid_(), userId: me.id, classId, valueId, coinWeight };
   });
-  if (cleaned.length > 3) throw new Error('Pick at most 3 values.');
-  if (sum > 5) throw new Error('Total coins must be ≤ 5.');
+  if (cleaned.length > 3) {throw new Error('Pick at most 3 values.');}
+  if (sum > 5) {throw new Error('Total coins must be ≤ 5.');}
 
   // delete any previous selections that are NOT in the new set
   const keep = new Set(cleaned.map(x => x.valueId));
   deleteRowsWhere_(SHEET_IDS.ValueSelections, r =>
-    r.userId === me.id && r.classId === classId && !keep.has(r.valueId)
+    r.userId === me.id && r.classId === classId && !keep.has(r.valueId),
   );
 
   // upsert current (batch)
@@ -110,29 +110,28 @@ function api_upsertValueSelection(payload){
 }
 
 
-
 // Upsert mission
 function api_selectMission(payload){
   const email = getCurrentUserEmail();
-  if (!email) throw new Error('No identity.');
+  if (!email) {throw new Error('No identity.');}
 
   const users = readRows_(SHEET_IDS.Users);
-  const me = users.find(u => (u.email||'').toLowerCase() === email.toLowerCase());
-  if (!me) throw new Error('User not registered.');
+  const me = users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+  if (!me) {throw new Error('User not registered.');}
 
   const { classId, missionId } = payload || {};
-  if (!classId || !missionId) throw new Error('Bad payload.');
+  if (!classId || !missionId) {throw new Error('Bad payload.');}
 
   const inClass = readRows_(SHEET_IDS.Enrollments).some(e => e.classId === classId && e.userId === me.id);
-  if (!inClass) throw new Error('Not enrolled in this class.');
+  if (!inClass) {throw new Error('Not enrolled in this class.');}
 
   // Ensure mission is allowed for this class
   const allowed = readRows_(SHEET_IDS.ClassMission)
     .some(x => x.classId === classId && x.missionId === missionId);
-  if (!allowed) throw new Error('Mission not allowed for this class.');
+  if (!allowed) {throw new Error('Mission not allowed for this class.');}
 
   updateOrInsert_(SHEET_IDS.MissionSelections, ['userId','classId'], {
-    id: uid_(), userId: me.id, classId, missionId
+    id: uid_(), userId: me.id, classId, missionId,
   });
   return { ok: true };
 }
@@ -140,19 +139,19 @@ function api_selectMission(payload){
 // Teacher: suggest teams by values (cosine) — GLOBAL values (no ClassAllowedValue)
 function api_suggestTeamsByValues(classId) {
   const me = getMe_();
-  if (!me || (me.role !== 'TEACHER' && me.role !== 'ADMIN')) throw new Error('Teacher only.');
-  if (!classId) throw new Error('classId required.');
+  if (!me || (me.role !== 'TEACHER' && me.role !== 'ADMIN')) {throw new Error('Teacher only.');}
+  if (!classId) {throw new Error('classId required.');}
 
   // enrollments in this class
   const enroll = readRows_(SHEET_IDS.Enrollments).filter(e => e.classId === classId);
-  if (!enroll.length) return { classId, teams: [], note: 'No enrollments.' };
+  if (!enroll.length) {return { classId, teams: [], note: 'No enrollments.' };}
 
   const users = readRows_(SHEET_IDS.Users);
 
   // GLOBAL active values define the vector space
   const vals = readRows_(SHEET_IDS.Values)
     .filter(v => v.active === true || String(v.active).toUpperCase() === 'TRUE');
-  if (!vals.length) return { classId, teams: [], note: 'No active values configured.' };
+  if (!vals.length) {return { classId, teams: [], note: 'No active values configured.' };}
 
   // student selections for this class
   const sel = readRows_(SHEET_IDS.ValueSelections).filter(s => s.classId === classId);
@@ -164,7 +163,7 @@ function api_suggestTeamsByValues(classId) {
     const vec = new Array(vals.length).fill(0);
     sel.filter(s => s.userId === e.userId).forEach(s => {
       const idx = valueIndex[s.valueId];
-      if (idx != null) vec[idx] = Number(s.coinWeight || 0);
+      if (idx != null) {vec[idx] = Number(s.coinWeight || 0);}
     });
     return { userId: e.userId, displayName: u.displayName, vec };
   });
@@ -186,7 +185,7 @@ function api_suggestTeamsByValues(classId) {
   while (pool.length) {
     const seed = pool.shift();
     const scored = pool.map(x => ({ x, s: cosine(seed.vec, x.vec) }))
-                       .sort((a, b) => b.s - a.s);
+      .sort((a, b) => b.s - a.s);
     // Try to fill to MAX; if not enough, take as many as possible (>= MIN when possible)
     const takeCount = Math.min(MAX - 1, scored.length);
     const take = scored.slice(0, takeCount).map(y => y.x);
@@ -194,11 +193,10 @@ function api_suggestTeamsByValues(classId) {
     // remove taken
     take.forEach(t => {
       const i = pool.findIndex(z => z.userId === t.userId);
-      if (i >= 0) pool.splice(i, 1);
+      if (i >= 0) {pool.splice(i, 1);}
     });
   }
 
   return { classId, teams };
 }
-
 

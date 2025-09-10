@@ -1,0 +1,18 @@
+# HTML files
+*.html
+
+# Configuration files
+appsscript.json
+.git/
+node_modules/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

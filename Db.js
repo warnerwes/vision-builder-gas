@@ -3,13 +3,13 @@
 /** Get a sheet by name, or throw a clear error. */
 function sheet_(name) {
   const sh = SpreadsheetApp.getActive().getSheetByName(name);
-  if (!sh) throw new Error('Missing sheet: ' + name);
+  if (!sh) {throw new Error(`Missing sheet: ${name}`);}
   return sh;
 }
 
 /** Header fetch with sanity checks (headers trimmed & stringified). */
 function getHeaders_(sh) {
-  if (!sh || sh.getLastRow() < 1 || sh.getLastColumn() < 1) return [];
+  if (!sh || sh.getLastRow() < 1 || sh.getLastColumn() < 1) {return [];}
   const hdr = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0] || [];
   return hdr.map(h => String(h).trim());
 }
@@ -18,18 +18,18 @@ function getHeaders_(sh) {
 function readRows_(name) {
   const sh = sheet_(name);
   const rng = sh.getDataRange();
-  if (!rng) return [];
+  if (!rng) {return [];}
   const values = rng.getValues();
-  if (!values.length) return [];
+  if (!values.length) {return [];}
   const [headerRaw, ...rows] = values;
   const header = (headerRaw || []).map(h => String(h).trim());
-  if (!header.length) return [];
+  if (!header.length) {return [];}
   const idx = Object.fromEntries(header.map((h, i) => [h, i]));
   return rows
     .filter(r => r && r.some(cell => String(cell).trim().length))
     .map(r => {
       const obj = {};
-      for (const k in idx) obj[k] = r[idx[k]];
+      for (const k in idx) {obj[k] = r[idx[k]];}
       return obj;
     });
 }
@@ -41,7 +41,7 @@ function writeRow_(name, obj) {
   try {
     const sh = sheet_(name);
     const headers = getHeaders_(sh);
-    if (!headers.length) throw new Error('No headers in sheet: ' + name);
+    if (!headers.length) {throw new Error(`No headers in sheet: ${name}`);}
     const row = headers.map(h => (Object.prototype.hasOwnProperty.call(obj, h) && obj[h] != null) ? obj[h] : '');
     sh.appendRow(row);
   } finally {
@@ -60,7 +60,7 @@ function updateOrInsert_(name, keyCols, obj) {
   try {
     const sh = sheet_(name);
     const data = sh.getDataRange().getValues();
-    if (data.length === 0) throw new Error('No header row in sheet: ' + name);
+    if (data.length === 0) {throw new Error(`No header row in sheet: ${name}`);}
 
     const [headerRaw, ...rows] = data;
     const headers = (headerRaw || []).map(h => String(h).trim());
@@ -68,7 +68,7 @@ function updateOrInsert_(name, keyCols, obj) {
 
     // find matching row
     const match = rows.findIndex(r =>
-      keyCols.every(k => String(r[idx[k]] ?? '') === String(obj[k] ?? ''))
+      keyCols.every(k => String(r[idx[k]] ?? '') === String(obj[k] ?? '')),
     );
 
     if (match >= 0) {
@@ -78,13 +78,13 @@ function updateOrInsert_(name, keyCols, obj) {
       const next = headers.map(h =>
         Object.prototype.hasOwnProperty.call(obj, h)
           ? (obj[h] != null ? obj[h] : '') // write '' if explicitly provided null/undefined
-          : current[idx[h]]
+          : current[idx[h]],
       );
       sh.getRange(rIndex, 1, 1, headers.length).setValues([next]);
     } else {
       // insert new row mapped to headers
       const row = headers.map(h =>
-        Object.prototype.hasOwnProperty.call(obj, h) && obj[h] != null ? obj[h] : ''
+        Object.prototype.hasOwnProperty.call(obj, h) && obj[h] != null ? obj[h] : '',
       );
       sh.appendRow(row);
     }
@@ -98,13 +98,13 @@ function updateOrInsert_(name, keyCols, obj) {
  * Builds an index on the existing sheet rows for O(n + m).
  */
 function updateOrInsertMany_(name, keyCols, objects) {
-  if (!objects || !objects.length) return 0;
+  if (!objects || !objects.length) {return 0;}
   const lock = LockService.getDocumentLock();
   lock.waitLock(5000);
   try {
     const sh = sheet_(name);
     const data = sh.getDataRange().getValues();
-    if (data.length === 0) throw new Error('No header row in sheet: ' + name);
+    if (data.length === 0) {throw new Error(`No header row in sheet: ${name}`);}
 
     const [headerRaw, ...rows] = data;
     const headers = (headerRaw || []).map(h => String(h).trim());
@@ -125,12 +125,12 @@ function updateOrInsertMany_(name, keyCols, objects) {
         const next = headers.map(h =>
           Object.prototype.hasOwnProperty.call(obj, h)
             ? (obj[h] != null ? obj[h] : '')
-            : hit.current[idx[h]]
+            : hit.current[idx[h]],
         );
         updates.push({ rIndex: hit.rIndex, next });
       } else {
         inserts.push(headers.map(h =>
-          Object.prototype.hasOwnProperty.call(obj, h) && obj[h] != null ? obj[h] : ''
+          Object.prototype.hasOwnProperty.call(obj, h) && obj[h] != null ? obj[h] : '',
         ));
       }
     });
@@ -157,12 +157,12 @@ function updateOrInsertMany_(name, keyCols, objects) {
 function deleteRowById_(name, id) {
   const sh = sheet_(name);
   const data = sh.getDataRange().getValues();
-  if (data.length === 0) return false;
+  if (data.length === 0) {return false;}
   const [headerRaw, ...rows] = data;
   const headers = (headerRaw || []).map(h => String(h).trim());
   const idx = Object.fromEntries(headers.map((h, i) => [h, i]));
   const r = rows.findIndex(r => String(r[idx.id]) === String(id));
-  if (r < 0) return false;
+  if (r < 0) {return false;}
   sh.deleteRow(r + 2);
   return true;
 }
@@ -171,7 +171,7 @@ function deleteRowById_(name, id) {
 function deleteRowsWhere_(name, predicateFn) {
   const sh = sheet_(name);
   const data = sh.getDataRange().getValues();
-  if (data.length === 0) return 0;
+  if (data.length === 0) {return 0;}
   const [headerRaw, ...rows] = data;
   const headers = (headerRaw || []).map(h => String(h).trim());
   const idx = Object.fromEntries(headers.map((h, i) => [h, i]));
@@ -179,7 +179,7 @@ function deleteRowsWhere_(name, predicateFn) {
   let deleted = 0;
   for (let i = rows.length - 1; i >= 0; i--) {
     const obj = {};
-    for (const k in idx) obj[k] = rows[i][idx[k]];
+    for (const k in idx) {obj[k] = rows[i][idx[k]];}
     if (predicateFn(obj)) {
       sh.deleteRow(i + 2);
       deleted++;

@@ -9,7 +9,7 @@ function buildViews() {
 function buildView_ClassMission() {
   const ss = SpreadsheetApp.getActive();
   const name = 'VIEW_ClassMission';
-  let sh = ss.getSheetByName(name); if (!sh) sh = ss.insertSheet(name); else sh.clear();
+  let sh = ss.getSheetByName(name); if (!sh) {sh = ss.insertSheet(name);} else {sh.clear();}
 
   const classes = readRows_(SHEET_IDS.Classes);
   const missions = readRows_(SHEET_IDS.Missions);
@@ -21,7 +21,7 @@ function buildView_ClassMission() {
   const header = ['id','classId','className','missionId','missionName'];
   const rows = cm.map(r => [r.id, r.classId, className[r.classId] || '', r.missionId, missionName[r.missionId] || '']);
 
-  if (!rows.length) rows.push(['','','','','']);
+  if (!rows.length) {rows.push(['','','','','']);}
   sh.getRange(1,1,1,header.length).setValues([header]).setFontWeight('bold').setBackground('#f1f3f4');
   sh.getRange(2,1,rows.length,header.length).setValues(rows);
   sh.setFrozenRows(1);
@@ -31,7 +31,7 @@ function buildView_ClassMission() {
 function buildView_Enrollments() {
   const ss = SpreadsheetApp.getActive();
   const name = 'VIEW_Enrollments';
-  let sh = ss.getSheetByName(name); if (!sh) sh = ss.insertSheet(name); else sh.clear();
+  let sh = ss.getSheetByName(name); if (!sh) {sh = ss.insertSheet(name);} else {sh.clear();}
 
   const users = readRows_(SHEET_IDS.Users);
   const classes = readRows_(SHEET_IDS.Classes);
@@ -44,11 +44,11 @@ function buildView_Enrollments() {
   const header = ['id','userId','userName','grade','classId','className','roleInClass'];
   const rows = enroll.map(r => [r.id, r.userId, uname[r.userId] || '', ugrade[r.userId] || '', r.classId, cname[r.classId] || '', r.roleInClass || '']);
 
-  if (!rows.length) rows.push(['','','','','','','']);
+  if (!rows.length) {rows.push(['','','','','','','']);}
   sh.getRange(1,1,1,header.length).setValues([header]).setFontWeight('bold').setBackground('#f1f3f4');
   sh.getRange(2,1,rows.length,header.length).setValues(rows);
   sh.setFrozenRows(1);
   autosize_(sh);
 }
 
-function autosize_(sh){ const lc = sh.getLastColumn(); for (let c=1;c<=lc;c++) sh.autoResizeColumn(c); }
+function autosize_(sh){ const lc = sh.getLastColumn(); for (let c = 1; c <= lc; c++) {sh.autoResizeColumn(c);} }

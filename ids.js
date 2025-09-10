@@ -9,19 +9,19 @@ function openIdLookup() {
 function api_ids_bootstrap() {
   // Return compact lists for sidebar
   const classes = safeRows_(SHEET_IDS.Classes).map(c => ({
-    id: c.id, name: c.name || '(unnamed)', type: c.type || '', classroomCourseId: c.classroomCourseId || ''
+    id: c.id, name: c.name || '(unnamed)', type: c.type || '', classroomCourseId: c.classroomCourseId || '',
   }));
 
   const users = safeRows_(SHEET_IDS.Users).map(u => ({
-    id: u.id, name: u.displayName || '(no name)', email: u.email || '', role: u.role || '', grade: u.gradeLevel || ''
+    id: u.id, name: u.displayName || '(no name)', email: u.email || '', role: u.role || '', grade: u.gradeLevel || '',
   }));
 
   const missions = safeRows_(SHEET_IDS.Missions).map(m => ({
-    id: m.id, name: m.label || m.name || '(no label)', active: String(m.active || '')
+    id: m.id, name: m.label || m.name || '(no label)', active: String(m.active || ''),
   }));
 
   const teams = safeRows_(SHEET_IDS.Teams).map(t => ({
-    id: t.id, name: t.name || '(no name)', classId: t.classId || ''
+    id: t.id, name: t.name || '(no name)', classId: t.classId || '',
   }));
 
   // quick map for class name lookup
@@ -34,7 +34,7 @@ function buildIdLookupSheet() {
   const ss = SpreadsheetApp.getActive();
   const sheetName = 'ID_Lookup';
   let sh = ss.getSheetByName(sheetName);
-  if (!sh) sh = ss.insertSheet(sheetName); else sh.clear();
+  if (!sh) {sh = ss.insertSheet(sheetName);} else {sh.clear();}
 
   const { classes, users, missions, teams, classNameById } = api_ids_bootstrap();
 
@@ -64,12 +64,12 @@ function highlightIdColumns() {
   const color = '#FFF3CD';
   Object.values(SHEET_IDS).forEach(name => {
     const sh = SpreadsheetApp.getActive().getSheetByName(name);
-    if (!sh) return;
+    if (!sh) {return;}
     const headers = getHeaders_(sh);
     const j = headers.indexOf('id');
-    if (j < 0) return;
+    if (j < 0) {return;}
     const col = j + 1;
-    if (sh.getLastRow() >= 1) sh.getRange(1, col, sh.getLastRow(), 1).setBackground(color);
+    if (sh.getLastRow() >= 1) {sh.getRange(1, col, sh.getLastRow(), 1).setBackground(color);}
     sh.getRange(1, col).setFontWeight('bold');
     sh.setColumnWidth(col, 220);
   });
@@ -80,12 +80,12 @@ function highlightIdColumns() {
 function clearIdHighlights() {
   Object.values(SHEET_IDS).forEach(name => {
     const sh = SpreadsheetApp.getActive().getSheetByName(name);
-    if (!sh) return;
+    if (!sh) {return;}
     const headers = getHeaders_(sh);
     const j = headers.indexOf('id');
-    if (j < 0) return;
+    if (j < 0) {return;}
     const col = j + 1;
-    if (sh.getLastRow() >= 1) sh.getRange(1, col, sh.getLastRow(), 1).setBackground(null);
+    if (sh.getLastRow() >= 1) {sh.getRange(1, col, sh.getLastRow(), 1).setBackground(null);}
     sh.getRange(1, col).setFontWeight('bold'); // keep header bold if you like
   });
   SpreadsheetApp.getUi().alert('Cleared id highlights.');
@@ -99,13 +99,13 @@ function safeRows_(name) {
 
 function writeSection_(sh, startRow, title, headers, rows) {
   sh.getRange(startRow, 1, 1, 1).setValue(title).setFontWeight('bold').setFontSize(12);
-  sh.getRange(startRow+1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold')
+  sh.getRange(startRow + 1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold')
     .setBackground('#f1f3f4');
-  if (rows.length) sh.getRange(startRow+2, 1, rows.length, headers.length).setValues(rows);
+  if (rows.length) {sh.getRange(startRow + 2, 1, rows.length, headers.length).setValues(rows);}
   return startRow + 1 + 1 + Math.max(1, rows.length);
 }
 
 function autoSize_(sh) {
   const lc = sh.getLastColumn();
-  for (let c=1; c<=lc; c++) sh.autoResizeColumn(c);
+  for (let c = 1; c <= lc; c++) {sh.autoResizeColumn(c);}
 }

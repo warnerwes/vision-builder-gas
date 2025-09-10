@@ -513,6 +513,7 @@
         const rack = byId('rowCoins_'+id); if (rack){ rack.appendChild(el('div')).className='coin'; }
         byId('cw_'+id).textContent = S.coins[id];
         renderCoinTray();
+        renderSelectedValuesDisplay();
         byId('totalCoins').textContent = totalCoins();
         S.dirty = true; updateButtons();
       }
@@ -524,13 +525,14 @@
         const rack = byId('rowCoins_'+id); if (rack && rack.lastElementChild) rack.lastElementChild.remove();
         byId('cw_'+id).textContent = S.coins[id];
         renderCoinTray();
+        renderSelectedValuesDisplay();
         byId('totalCoins').textContent = totalCoins();
         S.dirty = true; updateButtons();
       }
 
       function resetCoins(){
         Object.keys(S.coins).forEach(k => S.coins[k] = 0);
-        renderCoins(); renderCoinTray();
+        renderCoins(); renderCoinTray(); renderSelectedValuesDisplay();
         byId('totalCoins').textContent = totalCoins();
         S.dirty = true; updateButtons();
       }

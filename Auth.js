@@ -10,19 +10,18 @@ function getCurrentUserEmail() {
 const OAUTH_CLIENT_ID = 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com';
 
 function verifyIdToken_(idToken) {
-  const url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken);
+  const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`;
   const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-  if (resp.getResponseCode() !== 200) throw new Error('Invalid ID token');
+  if (resp.getResponseCode() !== 200) {throw new Error('Invalid ID token');}
 
   const data = JSON.parse(resp.getContentText());
 
   // --- REQUIRED checks ---
-  if (data.aud !== OAUTH_CLIENT_ID) throw new Error('Bad audience (aud).');
-  if (!(data.iss === 'https://accounts.google.com' || data.iss === 'accounts.google.com'))
-    throw new Error('Bad issuer (iss).');
-  if (String(data.email_verified) !== 'true') throw new Error('Email not verified.');
+  if (data.aud !== OAUTH_CLIENT_ID) {throw new Error('Bad audience (aud).');}
+  if (!(data.iss === 'https://accounts.google.com' || data.iss === 'accounts.google.com')) {throw new Error('Bad issuer (iss).');}
+  if (String(data.email_verified) !== 'true') {throw new Error('Email not verified.');}
   const now = Math.floor(Date.now() / 1000);
-  if (Number(data.exp) < now) throw new Error('Token expired.');
+  if (Number(data.exp) < now) {throw new Error('Token expired.');}
 
   // Optional: restrict to your domain (uncomment if desired)
   // if (data.hd && data.hd !== 'yourdomain.org') throw new Error('Wrong hosted domain.');

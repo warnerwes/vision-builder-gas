@@ -13,7 +13,7 @@ const SHEET_IDS = {
   Values:'Values', Missions:'Missions', ClassMission:'ClassMission',
   ValueSelections:'ValueSelections', MissionSelections:'MissionSelections',
   Teams:'Teams', TeamMembers:'TeamMembers',
-  VisionTexts:'VisionTexts' // <— NEW
+  VisionTexts:'VisionTexts', // <— NEW
 };
 
 // Create sheet if missing (headers once)
@@ -49,7 +49,6 @@ function onOpen() {
 }
 
 
-
 function openAdmin() {
   ensureAdminSheets_(); // defined in Admin.gs
   const html = HtmlService.createHtmlOutputFromFile('Admin')
@@ -60,7 +59,7 @@ function openAdmin() {
 
 function showWebAppLink() {
   const url = ScriptApp.getService().getUrl(); // works after first web app deploy
-  SpreadsheetApp.getUi().alert('Student Web App URL:\n' + (url || 'Deploy the web app first.'));
+  SpreadsheetApp.getUi().alert(`Student Web App URL:\n${url || 'Deploy the web app first.'}`);
 }
 
 // ---- Web App entry ----
@@ -122,28 +121,28 @@ function getMe_() {
   }
   const users = readRows_(SHEET_IDS.Users);
   const me = users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
-  if (!me) throw new Error('User not registered in Users sheet: ' + email);
+  if (!me) {throw new Error(`User not registered in Users sheet: ${email}`);}
   return me;
 }
 
 // ---- Tiny sheet helpers (read-only for this file) ----
 function sheet_(name) {
-  if (!name) throw new Error('Missing sheet name (got undefined). Check SHEET_IDS usage.');
+  if (!name) {throw new Error('Missing sheet name (got undefined). Check SHEET_IDS usage.');}
   return SpreadsheetApp.getActive().getSheetByName(name);
 }
 
 function readRows_(name) {
   const sh = sheet_(name);
-  if (!sh || sh.getLastRow() < 1 || sh.getLastColumn() < 1) return [];
+  if (!sh || sh.getLastRow() < 1 || sh.getLastColumn() < 1) {return [];}
   const values = sh.getDataRange().getValues();
-  if (!values.length) return [];
+  if (!values.length) {return [];}
   const [header, ...rows] = values;
   const idx = Object.fromEntries(header.map((h, i) => [h, i]));
   return rows
     .filter(r => r.some(cell => String(cell).trim().length))
     .map(r => {
       const obj = {};
-      for (const k in idx) obj[k] = r[idx[k]];
+      for (const k in idx) {obj[k] = r[idx[k]];}
       return obj;
     });
 }
@@ -152,20 +151,20 @@ const OPENAI_MODEL = 'gpt-5-mini';
 const OPENAI_URL   = 'https://api.openai.com/v1/responses';
 
 function extractOpenAIText_(json) {
-  if (typeof json?.output_text === 'string' && json.output_text.trim()) return json.output_text.trim();
+  if (typeof json?.output_text === 'string' && json.output_text.trim()) {return json.output_text.trim();}
   const outs = Array.isArray(json?.output) ? json.output : [];
   for (const msg of outs) {
     const parts = Array.isArray(msg?.content) ? msg.content : [];
     for (const part of parts) {
       if ((part.type === 'output_text' || part.type === 'summary_text') && typeof part.text === 'string') {
         const t = part.text.trim();
-        if (t) return t;
+        if (t) {return t;}
       }
     }
   }
   // legacy fallback
   const c = json?.choices?.[0]?.message?.content;
-  if (typeof c === 'string' && c.trim()) return c.trim();
+  if (typeof c === 'string' && c.trim()) {return c.trim();}
   return '';
 }
 
@@ -173,10 +172,10 @@ function callOpenAIPlain_(inputStr, tokenBudget = 160) {
   const body = {
     model: OPENAI_MODEL,
     input: inputStr,                 // ← single string, simplest valid shape
-    text: { verbosity: "low" },      // concise
-    reasoning: { effort: "minimal" },// fast, few reasoning tokens
+    text: { verbosity: 'low' },      // concise
+    reasoning: { effort: 'minimal' },// fast, few reasoning tokens
     max_output_tokens: tokenBudget,  // 160 is plenty for 55 words
-    store: false                     // student privacy; flip to true if you want
+    store: false,                     // student privacy; flip to true if you want
   };
 
   const resp = UrlFetchApp.fetch(OPENAI_URL, {
@@ -184,7 +183,7 @@ function callOpenAIPlain_(inputStr, tokenBudget = 160) {
     contentType: 'application/json',
     payload: JSON.stringify(body),
     muteHttpExceptions: true,
-    headers: { Authorization: 'Bearer ' + getOpenAIKey_() }
+    headers: { Authorization: `Bearer ${getOpenAIKey_()}` },
   });
 
   const status = resp.getResponseCode();
@@ -202,14 +201,14 @@ function callOpenAIPlain_(inputStr, tokenBudget = 160) {
   }
 
   const text = extractOpenAIText_(data);
-  if (!text) throw new Error('OpenAI returned no text. Debug: ' + raw.slice(0, 800));
+  if (!text) {throw new Error(`OpenAI returned no text. Debug: ${raw.slice(0, 800)}`);}
   return text.trim();
 }
 
 
 function getOpenAIKey_() {
   const key = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
-  if (!key) throw new Error('OpenAI key missing. Set Script property OPENAI_API_KEY.');
+  if (!key) {throw new Error('OpenAI key missing. Set Script property OPENAI_API_KEY.');}
   return key;
 }
 
@@ -265,15 +264,15 @@ Return only the final 1–2 sentences. No headings or explanations.
 
 function api_generateVision(payload) {
   const me = getMe_();
-  if (!payload || !payload.classId) throw new Error('classId required.');
+  if (!payload || !payload.classId) {throw new Error('classId required.');}
 
   const enrolled = readRows_(SHEET_IDS.Enrollments)
     .some(e => e.classId === payload.classId && e.userId === me.id);
-  if (!enrolled) throw new Error('Not enrolled in this class.');
+  if (!enrolled) {throw new Error('Not enrolled in this class.');}
 
   const safeName = (() => {
     const n = String(me.displayName || '').trim();
-    if (!n) return 'Student';
+    if (!n) {return 'Student';}
     const parts = n.split(/\s+/);
     const first = parts[0] || 'Student';
     const lastI = (parts[1] || '').charAt(0);
@@ -291,5 +290,4 @@ function api_generateVision(payload) {
 
   return { text };
 }
-
 

@@ -5,22 +5,22 @@ function backupNow(){
   const tabs = Object.values(SHEET_IDS);
   const payload = {};
   tabs.forEach(t => payload[t] = readRows_(t));
-  const blob = Utilities.newBlob(JSON.stringify(payload,null,2), 'application/json', 'rtu_backup_' + new Date().toISOString() + '.json');
+  const blob = Utilities.newBlob(JSON.stringify(payload,null,2), 'application/json', `rtu_backup_${new Date().toISOString()}.json`);
   folder.createFile(blob);
-  SpreadsheetApp.getUi().alert('Backup written to Drive folder: ' + BACKUP_FOLDER_NAME);
+  SpreadsheetApp.getUi().alert(`Backup written to Drive folder: ${BACKUP_FOLDER_NAME}`);
 }
 
 function restoreFromFilePrompt(){
-  SpreadsheetApp.getUi().alert('Open Drive folder '+BACKUP_FOLDER_NAME+', pick a backup JSON, then run restoreFromFile(fileId).');
+  SpreadsheetApp.getUi().alert(`Open Drive folder ${BACKUP_FOLDER_NAME}, pick a backup JSON, then run restoreFromFile(fileId).`);
 }
 
 function restoreFromFile(fileId){
   const file = DriveApp.getFileById(fileId);
   const data = JSON.parse(file.getBlob().getDataAsString());
   Object.entries(data).forEach(([tab, rows]) => {
-    if (!sheet_(tab)) return;
+    if (!sheet_(tab)) {return;}
     const sh = sheet_(tab);
-    const range = sh.getDataRange(); if (range) sh.clearContents();
+    const range = sh.getDataRange(); if (range) {sh.clearContents();}
     // write header
     const headers = rows[0] ? Object.keys(rows[0]) : ['id'];
     sh.getRange(1,1,1,headers.length).setValues([headers]);
