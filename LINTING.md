@@ -9,12 +9,13 @@ This project has been configured with ESLint to help catch errors and maintain c
 - **package.json**: Added ESLint and Google style guide configuration
 - **Dependencies**: ESLint with Google's style guide for consistent code formatting
 
-### 2. ESLint Configuration (.eslintrc.js)
+### 2. ESLint Configuration (.eslintrc.json)
 
 - **Google Style Guide**: Uses Google's JavaScript style guide as the base
 - **Google Apps Script Optimized**: Configured specifically for GAS development
 - **Warnings vs Errors**: Most rules are set to warnings for better development experience
 - **GAS Globals**: All Google Apps Script APIs and common project functions are recognized
+- **JSON Format**: Uses JSON instead of JS to avoid GAS execution conflicts
 
 ### 3. Ignore Files (.eslintignore)
 
@@ -83,4 +84,13 @@ Most modern IDEs (VS Code, WebStorm, etc.) can integrate with ESLint to show war
 
 ## Customization
 
-You can modify the `.eslintrc.js` file to adjust rules according to your team's preferences. The current configuration balances strictness with practicality for Google Apps Script development.
+You can modify the `.eslintrc.json` file to adjust rules according to your team's preferences. The current configuration balances strictness with practicality for Google Apps Script development.
+
+## Troubleshooting
+
+### "module is not defined" Error
+
+If you encounter a "module is not defined" error, it means the ESLint configuration file is being processed by Google Apps Script. This has been resolved by:
+
+1. Using `.eslintrc.json` instead of `.eslintrc.js` (JSON format doesn't execute as code)
+2. Adding ESLint configuration files to `.claspignore` to prevent deployment to GAS

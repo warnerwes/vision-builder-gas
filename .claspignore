@@ -6,3 +6,8 @@ README.md
 **/*.md
 *.ts
 *.map
+.eslintrc.json
+.eslintignore
+package.json
+package-lock.json
+LINTING.md
