@@ -82,6 +82,73 @@
         transform: scale(1.1);
       }
 
+      /* selected values display in vision area */
+      .selected-values-display {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        padding: 8px;
+        background: rgba(91,140,255,0.08);
+        border: 1px solid rgba(91,140,255,0.2);
+        border-radius: 8px;
+        min-height: 20px;
+      }
+      .selected-values-display .value-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        background: rgba(91,140,255,0.15);
+        border: 1px solid rgba(91,140,255,0.3);
+        border-radius: 12px;
+        font-size: 12px;
+        color: #cbd5e1;
+      }
+      .selected-values-display .value-emoji {
+        font-size: 14px;
+        margin-right: 2px;
+      }
+
+      /* tooltips */
+      .tooltip {
+        position: relative;
+        display: inline-block;
+      }
+      .tooltip .tooltiptext {
+        visibility: hidden;
+        width: 200px;
+        background-color: rgba(0,0,0,0.9);
+        color: #fff;
+        text-align: left;
+        border-radius: 6px;
+        padding: 8px 10px;
+        position: absolute;
+        z-index: 1000;
+        bottom: 125%;
+        left: 50%;
+        margin-left: -100px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 12px;
+        line-height: 1.4;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      }
+      .tooltip .tooltiptext::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: rgba(0,0,0,0.9) transparent transparent transparent;
+      }
+      .tooltip:hover .tooltiptext {
+        visibility: visible;
+        opacity: 1;
+      }
+
       .value-row { display:flex; align-items:center; justify-content:space-between; border:1px solid rgba(148,163,184,.12); border-radius:12px; padding:10px 12px; margin:6px 0; background:rgba(2,6,23,.35); }
       .value-ctl { display:flex; gap:8px; align-items:center; }
       .value-ctl button { width:34px; height:34px; border-radius:10px; background:linear-gradient(180deg,#0f172a,#0b1220); border:1px solid rgba(148,163,184,.25); }
@@ -240,6 +307,7 @@
             <button class="btn" onclick="generateVision()">Inspire</button>
             <button class="btn" onclick="copyVision()">Copy</button>
           </div>
+          <div id="selectedValuesDisplay" class="selected-values-display" style="margin-bottom:8px; min-height:20px;"></div>
           <textarea id="visionTxt" placeholder="Click Inspire to create a vision based on your values and mission…"></textarea>
         </div>
 
@@ -326,6 +394,7 @@
         renderCoinTray();
         renderMissions();
         renderPeers();
+        renderSelectedValuesDisplay();
         S.dirty = false;
         updateButtons();
       }
@@ -357,10 +426,11 @@
 
         vals.forEach(v => {
           const chip = el('div');
-          chip.className = 'chip' + (S.selectedValues.includes(v.id) ? ' sel' : '');
+          chip.className = 'chip tooltip' + (S.selectedValues.includes(v.id) ? ' sel' : '');
           chip.onclick = () => toggleValue(v.id);
           const emoji = (v.emoji && String(v.emoji).trim()) ? `<span class="value-emoji">${v.emoji}</span>` : '';
-          chip.innerHTML = `${emoji}<b>${escapeHtml(v.label || v.name || 'Value')}</b><span class="check"></span>`;
+          const description = (v.description && String(v.description).trim()) ? escapeHtml(v.description) : '';
+          chip.innerHTML = `${emoji}<b>${escapeHtml(v.label || v.name || 'Value')}</b><span class="check"></span>${description ? `<span class="tooltiptext">${description}</span>` : ''}`;
           area.appendChild(chip);
         });
         byId('valCount').textContent = `Selected: ${S.selectedValues.length}/${MAX_VALUES}`;
@@ -380,7 +450,7 @@
           if (!(valueId in S.coins)) S.coins[valueId] = 0;
         }
         clampCoins();
-        renderValues(); renderCoins(); renderCoinTray();
+        renderValues(); renderCoins(); renderCoinTray(); renderSelectedValuesDisplay();
         S.dirty = true; updateButtons();
       }
 
@@ -553,7 +623,12 @@
 
         const vals = S.selectedValues.map(id => {
           const v = (S.values||[]).find(x => x.id === id) || { id, label: id };
-          return { id: v.id, label: v.label || v.name || v.id, coins: Number(S.coins[id]||0) };
+          return { 
+            id: v.id, 
+            label: v.label || v.name || v.id, 
+            emoji: v.emoji || '',
+            coins: Number(S.coins[id]||0) 
+          };
         });
 
         const mission = (S.allowedMissions||[]).find(m => m.id === S.selectedMission) || null;
@@ -591,6 +666,30 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
         ta.select(); ta.setSelectionRange(0, 99999);
         document.execCommand('copy');
         showBanner('Vision copied to clipboard.', false);
+      }
+
+      /* ----- Selected Values Display ----- */
+      function renderSelectedValuesDisplay(){
+        const area = byId('selectedValuesDisplay'); 
+        if (!area) return;
+        area.innerHTML = '';
+        
+        if (!S.selectedValues.length) {
+          area.innerHTML = '<span class="muted">Select values above to see them here</span>';
+          return;
+        }
+
+        S.selectedValues.forEach(id => {
+          const val = (S.values||[]).find(v => v.id === id) || {};
+          const emoji = (val.emoji && String(val.emoji).trim()) ? `<span class="value-emoji">${val.emoji}</span>` : '';
+          const coins = Number(S.coins[id]||0);
+          const coinDisplay = coins > 0 ? ` (${coins} coin${coins > 1 ? 's' : ''})` : '';
+          
+          const item = el('div');
+          item.className = 'value-item';
+          item.innerHTML = `${emoji}<span>${escapeHtml(val.label || val.name || id)}${coinDisplay}</span>`;
+          area.appendChild(item);
+        });
       }
 
       /* ----- Peers ----- */
