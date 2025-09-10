@@ -5,16 +5,19 @@ This project has been configured with ESLint to help catch errors and maintain c
 ## What's Been Set Up
 
 ### 1. Package Configuration
+
 - **package.json**: Added ESLint and Google style guide configuration
 - **Dependencies**: ESLint with Google's style guide for consistent code formatting
 
 ### 2. ESLint Configuration (.eslintrc.js)
+
 - **Google Style Guide**: Uses Google's JavaScript style guide as the base
 - **Google Apps Script Optimized**: Configured specifically for GAS development
 - **Warnings vs Errors**: Most rules are set to warnings for better development experience
 - **GAS Globals**: All Google Apps Script APIs and common project functions are recognized
 
 ### 3. Ignore Files (.eslintignore)
+
 - HTML files are ignored (GAS HTML files)
 - Configuration files are ignored
 - IDE and OS files are ignored
@@ -35,19 +38,24 @@ npm run lint:fix
 ## Configuration Highlights
 
 ### Google Apps Script Specific Settings
+
 - **Snake_case functions**: Allowed (common in GAS)
 - **Unused variables**: Warnings only (GAS functions are often defined but not directly called)
 - **Undefined variables**: Warnings only (functions defined across multiple files)
 - **Line length**: 120 characters (reasonable for GAS development)
 
 ### Recognized Globals
+
 The configuration recognizes all Google Apps Script APIs and your project's common functions:
+
 - `SpreadsheetApp`, `ScriptApp`, `HtmlService`, etc.
 - `getMe_()`, `readRows_()`, `updateOrInsert_()`, etc.
 - `SHEET_IDS`, `DB_SHEET_NAME`, etc.
 
 ### Security Rules (Still Errors)
+
 These important rules remain as errors to prevent security issues:
+
 - `no-eval`: Prevents use of eval()
 - `no-implied-eval`: Prevents implied eval usage
 - `no-new-func`: Prevents Function constructor usage
