@@ -56,7 +56,7 @@
 
       /* chips (values) */
       .chip {
-        display:inline-flex; align-items:center; gap:8px;
+        display:inline-flex; align-items:center; gap:6px;
         padding:8px 12px; border-radius:999px; margin:4px;
         background:linear-gradient(180deg,#0f172a,#0b1220);
         border:1px solid rgba(148,163,184,.25); user-select:none; cursor:pointer;
@@ -74,7 +74,7 @@
       /* emoji styling */
       .value-emoji {
         font-size: 18px;
-        margin-right: 4px;
+        margin-right: 2px;
         filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
         transition: transform 0.2s ease;
       }
@@ -123,8 +123,10 @@
         font-size:40px; line-height:1;
         filter: drop-shadow(0 2px 6px rgba(0,0,0,.35));
         user-select:none;
+        transition: transform 0.2s ease;
       }
-      .mission.sel .emoji { transform: scale(1.05); }
+      .mission:hover .emoji { transform: scale(1.05); }
+      .mission.sel .emoji { transform: scale(1.1); }
       @media (max-width: 480px) {
         .mission .emoji { font-size:28px; }
       }
