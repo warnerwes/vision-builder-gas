@@ -103,32 +103,32 @@
       /* --- Mission card + star select --- */
       .mission{
         position:relative;
-        display:flex; flex-direction:column; gap:6px;
+        display:flex; flex-direction:column; gap:8px;
         justify-content:flex-start;
-        padding:12px 12px 28px;
-        min-height:80px;
+        padding:16px;
+        min-height:120px;
         word-wrap:break-word; white-space:normal;
         transition: border-color .15s ease, box-shadow .15s ease, transform .06s ease;
       }
-      .mission .row{ flex-wrap:nowrap; align-items:center; gap:8px; }
-      .mission .title b{ font-size:14px; line-height:1.35; display:block; opacity:.78; transition:opacity .15s ease; }
+      .mission .row{ flex-wrap:nowrap; align-items:flex-start; gap:8px; margin-top:8px; }
+      .mission .title b{ font-size:15px; line-height:1.4; display:block; opacity:.85; transition:opacity .15s ease; }
       .mission:hover{ transform: translateY(-1px); box-shadow: 0 10px 20px rgba(0,0,0,.18); }
-      .mission:hover .title b{ opacity:.95; }
+      .mission:hover .title b{ opacity:1; }
       .mission.sel{ border-color: rgba(91,140,255,.7); box-shadow: 0 10px 26px rgba(91,140,255,.18); }
       .mission.sel .title b{ opacity:1; }
 
-      /* Mission emoji badge */
+      /* Mission emoji - top left, smaller */
       .mission .emoji {
-        position:absolute; left:10px; bottom:8px;
-        font-size:40px; line-height:1;
-        filter: drop-shadow(0 2px 6px rgba(0,0,0,.35));
+        position:absolute; left:12px; top:12px;
+        font-size:24px; line-height:1;
+        filter: drop-shadow(0 1px 3px rgba(0,0,0,.3));
         user-select:none;
         transition: transform 0.2s ease;
       }
-      .mission:hover .emoji { transform: scale(1.05); }
-      .mission.sel .emoji { transform: scale(1.1); }
+      .mission:hover .emoji { transform: scale(1.1); }
+      .mission.sel .emoji { transform: scale(1.15); }
       @media (max-width: 480px) {
-        .mission .emoji { font-size:28px; }
+        .mission .emoji { font-size:20px; }
       }
 
       
@@ -360,7 +360,7 @@
           chip.className = 'chip' + (S.selectedValues.includes(v.id) ? ' sel' : '');
           chip.onclick = () => toggleValue(v.id);
           const emoji = (v.emoji && String(v.emoji).trim()) ? `<span class="value-emoji">${v.emoji}</span>` : '';
-          chip.innerHTML = `${emoji}<span class="check"></span><b>${escapeHtml(v.label || v.name || 'Value')}</b>`;
+          chip.innerHTML = `${emoji}<b>${escapeHtml(v.label || v.name || 'Value')}</b><span class="check"></span>`;
           area.appendChild(chip);
         });
         byId('valCount').textContent = `Selected: ${S.selectedValues.length}/${MAX_VALUES}`;
@@ -509,12 +509,12 @@
 
     const emoji = (m.emoji && String(m.emoji).trim()) || ''; // e.g., "🧩"
     card.innerHTML = `
+      ${emoji ? `<div class="emoji" aria-hidden="true">${emoji}</div>` : ''}
       <label class="row">
         <input type="radio" name="mission" ${S.selectedMission===m.id?'checked':''} style="accent-color:#7aa7ff"/>
         <div class="title"><b>${escapeHtml(m.label || m.name || 'Mission')}</b></div>
       </label>
       <div class="tight">${escapeHtml(m.description || '')}</div>
-      ${emoji ? `<div class="emoji" aria-hidden="true">${emoji}</div>` : ''}
       <div class="star">★</div>
       <div class="star-pop"></div>
     `;
