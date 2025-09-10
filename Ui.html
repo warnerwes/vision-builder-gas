@@ -621,15 +621,19 @@
         if (!S.currentClassId){ showBanner('Join a class first.', true); return; }
         if (!S.selectedValues.length){ showBanner('Pick your values first.', true); return; }
 
-        const vals = S.selectedValues.map(id => {
-          const v = (S.values||[]).find(x => x.id === id) || { id, label: id };
-          return { 
-            id: v.id, 
-            label: v.label || v.name || v.id, 
-            emoji: v.emoji || '',
-            coins: Number(S.coins[id]||0) 
-          };
-        });
+        // Sort values by coin weight (highest to lowest) for AI prompt
+        const vals = S.selectedValues
+          .map(id => {
+            const v = (S.values||[]).find(x => x.id === id) || { id, label: id };
+            return { 
+              id: v.id, 
+              label: v.label || v.name || v.id, 
+              emoji: v.emoji || '',
+              description: v.description || '',
+              coins: Number(S.coins[id]||0) 
+            };
+          })
+          .sort((a, b) => b.coins - a.coins);
 
         const mission = (S.allowedMissions||[]).find(m => m.id === S.selectedMission) || null;
 
@@ -679,10 +683,17 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
           return;
         }
 
-        S.selectedValues.forEach(id => {
-          const val = (S.values||[]).find(v => v.id === id) || {};
+        // Sort values by coin weight (highest to lowest)
+        const sortedValues = S.selectedValues
+          .map(id => {
+            const val = (S.values||[]).find(v => v.id === id) || {};
+            const coins = Number(S.coins[id]||0);
+            return { id, val, coins };
+          })
+          .sort((a, b) => b.coins - a.coins);
+
+        sortedValues.forEach(({ id, val, coins }) => {
           const emoji = (val.emoji && String(val.emoji).trim()) ? `<span class="value-emoji">${val.emoji}</span>` : '';
-          const coins = Number(S.coins[id]||0);
           const coinDisplay = coins > 0 ? ` (${coins} coin${coins > 1 ? 's' : ''})` : '';
           
           const item = el('div');
