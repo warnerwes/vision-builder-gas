@@ -1,0 +1,46 @@
+name: Sync from GAS (nightly)
+
+on:
+  schedule:
+    - cron: "17 9 * * *"  # 09:17 UTC daily (~2:17 AM PDT)
+  workflow_dispatch: {}
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # allow pushing to repo
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Install clasp
+        run: npm i -g @google/clasp
+
+      - name: Restore clasp auth from secret
+        shell: bash
+        run: |
+          mkdir -p ~/.clasprc
+          echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
+          echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc/clasp.json
+
+      - name: Pull from GAS
+        run: npx @google/clasp pull
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(gas): nightly pull from GAS"
+            git push
+          else
+            echo "No changes."
+          fi

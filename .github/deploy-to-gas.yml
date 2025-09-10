@@ -1,0 +1,62 @@
+name: Deploy to Google Apps Script
+
+on:
+  push:
+    branches: [ "main" ]
+    # Optional: only deploy when GAS files change
+    # paths:
+    #   - "*.js"
+    #   - "*.html"
+    #   - "appsscript.json"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Install clasp
+        run: npm i -g @google/clasp
+
+      - name: Restore clasp auth from secret
+        shell: bash
+        run: |
+          mkdir -p ~/.clasprc
+          # Classic clasp uses ~/.clasprc.json; newer also reads ~/.clasprc/clasp.json
+          echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
+          echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc/clasp.json
+          # (Sanity)
+          ls -la ~ | sed -n '1,200p'
+          test -s ~/.clasprc.json
+
+      - name: Verify clasp & target
+        run: |
+          clasp --version
+          # .clasp.json must be in the repo root (contains scriptId)
+          test -s .clasp.json
+          cat .clasp.json
+
+      - name: Push to Google Apps Script
+        run: |
+          # -f = force (skip prompt)
+          npx @google/clasp push -f
+
+      # Optional: create a new version on each deploy with the commit message
+      - name: Create GAS version
+        run: |
+          # Use short commit message as version description
+          DESC="$(git log -1 --pretty=%s)"
+          npx @google/clasp version "$DESC" || true
+
+      # Optional: update latest deployment (web app / add-on).
+      # Requires that a deployment already exists; otherwise omit this.
+      # - name: Update deployment
+      #   run: npx @google/clasp deploy
