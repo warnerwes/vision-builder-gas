@@ -1,0 +1,636 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>RoboTeamUp — Student</title>
+    <style>
+      :root {
+        --pri:#5b8cff; --pri2:#7aa7ff; --ok:#0b8043; --err:#b00020;
+        --bg:#0f172a; --muted:#94a3b8;
+      }
+      html,body { background:radial-gradient(1200px 600px at 10% -10%, #1e293b 0%, #0b1220 45%, #0a0f1d 100%); }
+      body {
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        color:#e5e7eb; padding: 20px; max-width: 980px; margin: 0 auto;
+      }
+      h1 { margin: 0; font-weight: 800; letter-spacing:.2px; }
+      .sub { color:var(--muted); margin: 4px 0 16px; }
+
+      .banner { margin: 10px 0; padding: 10px 12px; border-radius: 10px; display:none; backdrop-filter:saturate(140%) blur(6px); }
+      .banner.ok { display:block; background:rgba(16,185,129,.12); color:#34d399; border:1px solid rgba(16,185,129,.35); }
+      .banner.err{ display:block; background:rgba(239,68,68,.12);  color:#f87171; border:1px solid rgba(239,68,68,.35); }
+
+      .card {
+        border:1px solid rgba(148,163,184,.12);
+        border-radius: 14px; padding: 14px; margin: 14px 0;
+        background: linear-gradient(180deg, rgba(2,6,23,.6) 0%, rgba(2,6,23,.35) 100%);
+        box-shadow: 0 8px 30px rgba(2,6,23,.35), inset 0 1px 0 rgba(255,255,255,.06);
+      }
+      .row { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+      select, button, input, textarea { font-size:14px; color:#e5e7eb; background:#0b1220; border:1px solid rgba(148,163,184,.2); border-radius:10px; padding:8px 10px; }
+      select:focus, input:focus, textarea:focus { outline:2px solid rgba(91,140,255,.35); }
+      .btn { padding: 8px 12px; border-radius: 10px; cursor:pointer; transition: transform .06s ease, box-shadow .2s ease; }
+      .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(91,140,255,.15); }
+      .btn.primary { background:linear-gradient(90deg,var(--pri),var(--pri2)); border:0; }
+      .btn[disabled] { opacity:.5; cursor:not-allowed; box-shadow:none; transform:none; }
+
+      .grid { display:grid; grid-template-columns: 1.1fr .9fr; gap:14px; }
+      .grid-3 { display:grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap:10px; }
+      @media (max-width: 840px) { .grid { grid-template-columns: 1fr; } .grid-3 { grid-template-columns: 1fr; } }
+
+      /* sticky top tools (houses Save button) */
+      .tools {
+        position: sticky; top: 0; z-index: 5;
+        margin: -8px 0 8px;
+        padding: 8px 12px;
+        display:flex; align-items:center; justify-content:space-between; gap:12px;
+        background: rgba(2,6,23,.55);
+        border:1px solid rgba(148,163,184,.12);
+        border-radius:12px;
+        backdrop-filter: blur(6px) saturate(140%);
+      }
+
+      /* robot logo */
+      .hdr { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+      .bot { width:46px; height:46px; }
+
+      /* chips (values) */
+      .chip {
+        display:inline-flex; align-items:center; gap:8px;
+        padding:8px 12px; border-radius:999px; margin:4px;
+        background:linear-gradient(180deg,#0f172a,#0b1220);
+        border:1px solid rgba(148,163,184,.25); user-select:none; cursor:pointer;
+        transition: transform .08s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+      }
+      .chip:hover { transform: translateY(-1px); box-shadow: 0 8px 14px rgba(0,0,0,.25); }
+      .chip.sel { background:linear-gradient(180deg, rgba(91,140,255,.18), rgba(91,140,255,.08)); border-color: rgba(91,140,255,.6); }
+      .check {
+        width:18px; height:18px; border-radius:50%;
+        border:1px solid rgba(148,163,184,.4); display:inline-flex; align-items:center; justify-content:center;
+      }
+      .chip.sel .check { background:linear-gradient(180deg,#7aa7ff,#5b8cff); border:0; box-shadow: inset 0 -2px 4px rgba(0,0,0,.25); }
+      .chip.sel .check::after{ content:'✓'; font-size:12px; color:#000; font-weight:800; }
+
+      .value-row { display:flex; align-items:center; justify-content:space-between; border:1px solid rgba(148,163,184,.12); border-radius:12px; padding:10px 12px; margin:6px 0; background:rgba(2,6,23,.35); }
+      .value-ctl { display:flex; gap:8px; align-items:center; }
+      .value-ctl button { width:34px; height:34px; border-radius:10px; background:linear-gradient(180deg,#0f172a,#0b1220); border:1px solid rgba(148,163,184,.25); }
+
+      /* coins */
+      .tray { display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap; min-height:30px; }
+      .coin {
+        width:26px; height:26px; border-radius:50%;
+        background: radial-gradient(120% 120% at 30% 30%, #ffd77a 0%, #f7c14e 65%, #e3a93a 100%);
+        border:1px solid #c89632; box-shadow: inset 0 -2px 6px rgba(0,0,0,.25), 0 2px 6px rgba(0,0,0,.25);
+      }
+      .row-coins { display:flex; gap:8px; align-items:center; }
+
+      .pill { display:inline-block; padding:4px 8px; border:1px solid rgba(148,163,184,.25); border-radius:999px; margin:3px; background:rgba(2,6,23,.4); color:#cbd5e1; }
+      .tight { margin:2px 0 0; font-size:12px; color:var(--muted); }
+      .muted { color:var(--muted); }
+      textarea { width:100%; min-height:120px; }
+
+      /* --- Mission card + star select --- */
+      .mission{
+        position:relative;
+        display:flex; flex-direction:column; gap:6px;
+        justify-content:flex-start;
+        padding:12px 12px 28px;
+        min-height:80px;
+        word-wrap:break-word; white-space:normal;
+        transition: border-color .15s ease, box-shadow .15s ease, transform .06s ease;
+      }
+      .mission .row{ flex-wrap:nowrap; align-items:center; gap:8px; }
+      .mission .title b{ font-size:14px; line-height:1.35; display:block; opacity:.78; transition:opacity .15s ease; }
+      .mission:hover{ transform: translateY(-1px); box-shadow: 0 10px 20px rgba(0,0,0,.18); }
+      .mission:hover .title b{ opacity:.95; }
+      .mission.sel{ border-color: rgba(91,140,255,.7); box-shadow: 0 10px 26px rgba(91,140,255,.18); }
+      .mission.sel .title b{ opacity:1; }
+
+      /* Mission emoji badge */
+      .mission .emoji {
+        position:absolute; left:10px; bottom:8px;
+        font-size:40px; line-height:1;
+        filter: drop-shadow(0 2px 6px rgba(0,0,0,.35));
+        user-select:none;
+      }
+      .mission.sel .emoji { transform: scale(1.05); }
+      @media (max-width: 480px) {
+        .mission .emoji { font-size:28px; }
+      }
+
+      
+      /* Grid auto-fit with a comfy min width */
+      .grid-3{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+
+      /* Star badge */
+      .star{
+        position:absolute; right:10px; bottom:10px;
+        display:inline-flex; align-items:center; justify-content:center;
+        width:32px; height:32px; border-radius:50%;
+        background:rgba(148,163,184,.15);
+        color:rgba(148,163,184,.6); font-size:13px;
+        box-shadow:inset 0 0 0 1px rgba(148,163,184,.25);
+      }
+      .mission.sel .star{ background:gold; color:#000; box-shadow:0 0 10px gold; }
+
+      /* star pop burst */
+      .star-pop{ position:absolute; inset:0; pointer-events:none; display:none; }
+      .mission.sel .star-pop{ display:block; }
+      .star-pop::before, .star-pop::after{
+        content:""; position:absolute; left:calc(100% - 26px); bottom:27px;
+        width:6px; height:6px; border-radius:1px; background:#ffd700; opacity:.9;
+        transform:translate(-50%,50%) scale(0) rotate(0deg);
+        box-shadow:
+          0 -22px 0 0 #ffe27a, 0 22px 0 0 #ffe27a,
+          22px 0 0 0 #ffe27a, -22px 0 0 0 #ffe27a,
+          16px -16px 0 0 #ffd700, -16px 16px 0 0 #ffd700,
+          16px 16px 0 0 #ffd700, -16px -16px 0 0 #ffd700;
+        animation: starburst .55s ease-out forwards;
+      }
+      .star-pop::after{ width:4px; height:4px; opacity:.8; filter:blur(.5px); animation-delay:.03s; }
+      @keyframes starburst{
+        0%   { transform:translate(-50%,50%) scale(.2) rotate(0deg);  opacity:0; }
+        40%  { transform:translate(-50%,50%) scale(1)  rotate(12deg); opacity:1; }
+        100% { transform:translate(-50%,50%) scale(1.15) rotate(22deg); opacity:0; }
+      }
+
+      /* loading overlay */
+      #loading { position: fixed; inset: 0; background: rgba(6,9,18,.85);
+        display: flex; align-items:center; justify-content:center; z-index: 9998; }
+      .spin { width: 56px; height: 56px; border-radius: 50%;
+        border: 4px solid rgba(122,167,255,.25); border-top-color: #7aa7ff; animation: r 1s linear infinite; }
+      @keyframes r { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <!-- Loading overlay -->
+    <div id="loading"><div class="spin" aria-label="loading"></div></div>
+
+    <div class="hdr">
+      <svg class="bot" viewBox="0 0 64 64" aria-hidden="true">
+        <defs><linearGradient id="g" x1="0" x2="1">
+          <stop offset="0" stop-color="#7aa7ff"/><stop offset="1" stop-color="#5b8cff"/>
+        </linearGradient></defs>
+        <rect x="10" y="16" rx="8" ry="8" width="44" height="34" fill="url(#g)" opacity=".9"/>
+        <rect x="16" y="22" rx="4" ry="4" width="32" height="20" fill="#0b1220"/>
+        <circle cx="26" cy="32" r="4" fill="#7aa7ff"/><circle cx="38" cy="32" r="4" fill="#7aa7ff"/>
+        <rect x="30" y="10" width="4" height="8" rx="2" fill="#7aa7ff"/>
+        <circle cx="32" cy="8" r="3" fill="#7aa7ff"/>
+      </svg>
+      <div>
+        <h1>RoboTeamUp</h1>
+        <div class="sub">Welcome, <b id="meName">—</b></div>
+      </div>
+    </div>
+
+    <div id="banner" class="banner"></div>
+
+    <!-- Sticky tools row with single Save -->
+    <div class="tools">
+      <div class="row" style="margin:0;">
+        <div><b>Class:</b></div>
+        <select id="classSel" onchange="onClassChange()"></select>
+        <span id="classInfo" class="muted"></span>
+      </div>
+      <button id="saveAllBtn" class="btn primary" onclick="saveAll()" disabled>Save My Choices</button>
+    </div>
+
+    <div class="grid">
+      <div>
+        <div class="card">
+          <h3>Step 1 — Pick up to 3 Core Values</h3>
+          <div id="valuesArea" class="row"></div>
+          <div class="tight"><span id="valCount">Selected: 0/3</span></div>
+        </div>
+
+        <div class="card">
+          <h3>Step 2 — Spend up to 5 Coins</h3>
+          <div id="coinHint" class="muted">Pick values first.</div>
+          <div id="coinsArea"></div>
+          <div class="tray" id="coinTray" aria-label="coin tray"></div>
+          <div class="tight">Total coins: <span id="totalCoins">0</span>/5</div>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn" onclick="resetCoins()">Reset</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Step 3 — Choose a Mission</h3>
+          <div id="missionsArea" class="grid-3"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h3>Your Personal Vision</h3>
+          <div class="row" style="margin-bottom:6px;">
+            <button class="btn" onclick="generateVision()">Inspire</button>
+            <button class="btn" onclick="copyVision()">Copy</button>
+          </div>
+          <textarea id="visionTxt" placeholder="Click Inspire to create a vision based on your values and mission…"></textarea>
+        </div>
+
+        <div class="card">
+          <h3>Peers in This Class</h3>
+          <div id="peersArea"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Server payload: { me, classes, classIds, values, allowedMissions, peerNames, myValueSelections, myMissionSelections }
+      let S = {
+        me:null, classes:[], values:[], allowedMissions:[], peerNames:[],
+        myValueSelections:[], myMissionSelections:[],
+        currentClassId:null, selectedValues:[], coins:{}, selectedMission:null,
+        dirty:false
+      };
+
+      const MAX_VALUES = 3, MAX_COINS = 5;
+
+      startLoading();
+      google.script.run.withSuccessHandler(init).withFailureHandler(err).api_bootstrap();
+
+      function startLoading(){ const l = byId('loading'); if(l) l.style.display='flex'; }
+      function stopLoading(){ const l = byId('loading'); if(l) l.style.display='none'; }
+
+      function err(e){
+        stopLoading();
+        showBanner('Error: ' + (e && e.message ? e.message : e), true);
+      }
+
+      function init(data){
+        S = Object.assign(S, data || {});
+        byId('meName').textContent = (S.me && S.me.displayName) || '—';
+
+        fillClassSelect();
+        if (!S.currentClassId && S.classes.length) {
+          S.currentClassId = S.classes[0].id;
+          byId('classSel').value = S.currentClassId;
+        }
+        onClassChange();
+        stopLoading();
+        showBanner('Ready.', false);
+      }
+
+      /* ----- UI helpers ----- */
+      function showBanner(msg, isErr){
+        const b = byId('banner');
+        b.className = 'banner ' + (isErr ? 'err' : 'ok');
+        const ts = new Date().toLocaleTimeString();
+        b.textContent = `[${ts}] ${msg}`;
+      }
+      function byId(id){ return document.getElementById(id); }
+      function el(tag, html){ const n = document.createElement(tag); if (html!=null) n.innerHTML=html; return n; }
+      function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+      /* ----- Class select ----- */
+      function fillClassSelect(){
+        const sel = byId('classSel'); sel.innerHTML = '';
+        (S.classes||[]).forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name ? `${c.name}${c.type ? ' ('+c.type+')' : ''}` : c.id;
+          sel.appendChild(opt);
+        });
+        if (!S.classes.length) {
+          const opt = document.createElement('option');
+          opt.textContent = 'No classes found';
+          sel.appendChild(opt);
+        }
+      }
+
+      function onClassChange(){
+        S.currentClassId = byId('classSel').value || (S.classes[0] && S.classes[0].id);
+        const cls = (S.classes||[]).find(c => c.id === S.currentClassId);
+        byId('classInfo').textContent = cls ? `ID: ${cls.id}` : '';
+
+        // Load saved state for this class
+        loadSavedForCurrent();
+
+        renderValues();
+        renderCoins();
+        renderCoinTray();
+        renderMissions();
+        renderPeers();
+        S.dirty = false;
+        updateButtons();
+      }
+
+      function loadSavedForCurrent(){
+        S.selectedValues = [];
+        S.coins = {};
+        S.selectedMission = null;
+
+        if (!S.currentClassId) return;
+        const cls = S.currentClassId;
+
+        const mine = (S.myValueSelections||[]).filter(s => s.classId === cls);
+        if (mine.length){
+          mine.forEach(s => {
+            S.selectedValues.push(s.valueId);
+            S.coins[s.valueId] = Number(s.coinWeight || 0);
+          });
+        }
+        const mm = (S.myMissionSelections||[]).find(s => s.classId === cls);
+        if (mm) S.selectedMission = mm.missionId;
+      }
+
+      /* ----- Step 1: Values ----- */
+      function renderValues(){
+        const area = byId('valuesArea'); area.innerHTML = '';
+        const vals = (S.values||[]);
+        if (!vals.length){ area.textContent = 'No values configured.'; return; }
+
+        vals.forEach(v => {
+          const chip = el('div');
+          chip.className = 'chip' + (S.selectedValues.includes(v.id) ? ' sel' : '');
+          chip.onclick = () => toggleValue(v.id);
+          chip.innerHTML = `<span class="check"></span><b>${escapeHtml(v.label || v.name || 'Value')}</b>`;
+          area.appendChild(chip);
+        });
+        byId('valCount').textContent = `Selected: ${S.selectedValues.length}/${MAX_VALUES}`;
+      }
+
+      function toggleValue(valueId){
+        const idx = S.selectedValues.indexOf(valueId);
+        if (idx >= 0) {
+          S.selectedValues.splice(idx,1);
+          delete S.coins[valueId];
+        } else {
+          if (S.selectedValues.length >= MAX_VALUES){
+            showBanner('You can select up to 3 values.', true);
+            return;
+          }
+          S.selectedValues.push(valueId);
+          if (!(valueId in S.coins)) S.coins[valueId] = 0;
+        }
+        clampCoins();
+        renderValues(); renderCoins(); renderCoinTray();
+        S.dirty = true; updateButtons();
+      }
+
+      /* ----- Step 2: Coins (simplified, no animation) ----- */
+      function renderCoins(){
+        const area = byId('coinsArea'); area.innerHTML = '';
+        const hint = byId('coinHint');
+        if (!S.selectedValues.length){ hint.style.display='block'; return; }
+        hint.style.display='none';
+
+        S.selectedValues.forEach(id => {
+          const val = (S.values||[]).find(v => v.id === id) || {};
+          const row = el('div'); row.className = 'value-row';
+
+          const left = el('div', `<b>${escapeHtml(val.label || val.name || id)}</b>`);
+
+          const rack = el('div'); rack.className = 'row-coins'; rack.id = 'rowCoins_'+id;
+          const count = Number(S.coins[id]||0);
+          for (let i=0; i<count; i++){ rack.appendChild(el('div')).className='coin'; }
+
+          const ctl = el('div'); ctl.className = 'value-ctl';
+          ctl.innerHTML = `
+            <button class="btn" onclick="decCoin('${id}')">−</button>
+            <div><b id="cw_${id}">${count}</b></div>
+            <button class="btn" onclick="incCoin('${id}')">+</button>
+          `;
+
+          row.appendChild(left);
+          row.appendChild(rack);
+          row.appendChild(ctl);
+          area.appendChild(row);
+        });
+        byId('totalCoins').textContent = totalCoins();
+      }
+
+      function renderCoinTray(){
+        const tray = byId('coinTray'); tray.innerHTML = '';
+        const available = Math.max(0, MAX_COINS - totalCoins());
+        for (let i = 0; i < available; i++){ tray.appendChild(el('div')).className='coin tray-coin'; }
+      }
+
+      function totalCoins(){ return Object.values(S.coins).reduce((a,b)=>a + Number(b||0), 0); }
+      function clampCoins(){
+        Object.keys(S.coins).forEach(k => { if (!S.selectedValues.includes(k)) delete S.coins[k]; });
+        let t = totalCoins();
+        if (t > MAX_COINS){
+          const keys = Object.keys(S.coins);
+          for (let i=keys.length-1; i>=0 && t>MAX_COINS; i--){
+            const k = keys[i]; const can = Math.min(S.coins[k], t - MAX_COINS);
+            S.coins[k] -= can; t -= can;
+          }
+        }
+      }
+
+      function incCoin(id){
+        if (!S.selectedValues.includes(id)) return;
+        if (totalCoins() >= MAX_COINS) { showBanner('Max 5 coins total.', true); return; }
+        S.coins[id] = (S.coins[id]||0) + 1;
+        const rack = byId('rowCoins_'+id); if (rack){ rack.appendChild(el('div')).className='coin'; }
+        byId('cw_'+id).textContent = S.coins[id];
+        renderCoinTray();
+        byId('totalCoins').textContent = totalCoins();
+        S.dirty = true; updateButtons();
+      }
+
+      function decCoin(id){
+        if (!S.selectedValues.includes(id)) return;
+        if ((S.coins[id]||0) <= 0) return;
+        S.coins[id] = Math.max(0, (S.coins[id]||0) - 1);
+        const rack = byId('rowCoins_'+id); if (rack && rack.lastElementChild) rack.lastElementChild.remove();
+        byId('cw_'+id).textContent = S.coins[id];
+        renderCoinTray();
+        byId('totalCoins').textContent = totalCoins();
+        S.dirty = true; updateButtons();
+      }
+
+      function resetCoins(){
+        Object.keys(S.coins).forEach(k => S.coins[k] = 0);
+        renderCoins(); renderCoinTray();
+        byId('totalCoins').textContent = totalCoins();
+        S.dirty = true; updateButtons();
+      }
+
+      /* ----- Single SAVE (values -> mission) ----- */
+      function saveAll(){
+        if (!S.currentClassId){ showBanner('Join a class first.', true); return; }
+        const classId = S.currentClassId;
+        const selections = S.selectedValues.map(id => ({ valueId:id, coinWeight: Number(S.coins[id]||0) }));
+
+        startLoading();
+
+        const refresh = () => {
+          google.script.run
+            .withSuccessHandler(res => { S.dirty = false; init(res); showBanner('All saved!', false); confetti(); })
+            .withFailureHandler(err)
+            .api_bootstrap();
+        };
+
+        const saveValuesCall = (cb) => {
+          google.script.run
+            .withSuccessHandler(() => cb())
+            .withFailureHandler(e => { stopLoading(); showBanner('Save values failed: ' + e.message, true); })
+            .api_upsertValueSelection({ classId, selections });
+        };
+        const saveMissionCall = (cb) => {
+          if (!S.selectedMission) return cb();
+          google.script.run
+            .withSuccessHandler(() => cb())
+            .withFailureHandler(e => { stopLoading(); showBanner('Save mission failed: ' + e.message, true); })
+            .api_selectMission({ classId, missionId: S.selectedMission });
+        };
+
+        saveValuesCall(() => saveMissionCall(() => { stopLoading(); refresh(); }));
+      }
+
+      /* ----- Step 3: Mission (star select) ----- */
+      function renderMissions(){
+  const area = byId('missionsArea'); area.innerHTML='';
+  const list = (S.allowedMissions||[]).filter(m => m.classId === S.currentClassId);
+  if (!list.length){ area.innerHTML = '<div class="muted">No missions configured for this class.</div>'; return; }
+
+  list.forEach(m => {
+    const card = el('div');
+    card.className = 'card mission' + (S.selectedMission===m.id?' sel':'');
+
+    const emoji = (m.emoji && String(m.emoji).trim()) || ''; // e.g., "🧩"
+    card.innerHTML = `
+      <label class="row">
+        <input type="radio" name="mission" ${S.selectedMission===m.id?'checked':''} style="accent-color:#7aa7ff"/>
+        <div class="title"><b>${escapeHtml(m.label || m.name || 'Mission')}</b></div>
+      </label>
+      <div class="tight">${escapeHtml(m.description || '')}</div>
+      ${emoji ? `<div class="emoji" aria-hidden="true">${emoji}</div>` : ''}
+      <div class="star">★</div>
+      <div class="star-pop"></div>
+    `;
+
+    // click & keyboard
+    card.tabIndex = 0;
+    card.onclick = () => selectMission(m.id);
+    card.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectMission(m.id); }
+    };
+
+    area.appendChild(card);
+  });
+}
+
+
+      function selectMission(id){
+        if (S.selectedMission === id) return;
+        S.selectedMission = id;
+        S.dirty = true;
+        renderMissions();
+        updateButtons();
+
+        const selected = Array.from(document.querySelectorAll('#missionsArea .mission'))
+          .find(c => c.querySelector('input[type="radio"]').checked);
+        if (selected){
+          const pop = selected.querySelector('.star-pop');
+          if (pop){ const clone = pop.cloneNode(true); pop.replaceWith(clone); }
+        }
+      }
+
+      /* ----- Vision text ----- */
+      function generateVision(){
+        if (!S.currentClassId){ showBanner('Join a class first.', true); return; }
+        if (!S.selectedValues.length){ showBanner('Pick your values first.', true); return; }
+
+        const vals = S.selectedValues.map(id => {
+          const v = (S.values||[]).find(x => x.id === id) || { id, label: id };
+          return { id: v.id, label: v.label || v.name || v.id, coins: Number(S.coins[id]||0) };
+        });
+
+        const mission = (S.allowedMissions||[]).find(m => m.id === S.selectedMission) || null;
+
+        byId('visionTxt').value = '✨ Inspiring your vision…';
+        google.script.run
+          .withSuccessHandler(res => {
+            const txt = (res && res.text) ? res.text : '';
+            if (txt) {
+              byId('visionTxt').value = txt;
+              showBanner('Vision generated.', false);
+              confetti();
+            } else {
+              byId('visionTxt').value = '(No text returned)';
+              showBanner('No vision returned.', true);
+            }
+          })
+          .withFailureHandler(() => {
+            const parts = vals.sort((a,b)=>b.coins-a.coins).map(v => (v.label||'').toLowerCase()).filter(Boolean);
+            const missionObj = mission || {};
+            const missionStr = (missionObj.label || missionObj.name || 'our mission').toLowerCase();
+            byId('visionTxt').value =
+              `I commit to lead with ${parts.join(', ').replace(/, ([^,]*)$/, ' and $1') || 'my core values'}.
+This year I will pursue ${missionStr} by serving others, practicing consistently, and growing through challenges.`;
+          })
+          .api_generateVision({
+            classId: S.currentClassId,
+            selectedValues: vals,
+            mission: mission ? { id: mission.id, label: mission.label||mission.name, description: mission.description||'' } : {}
+          });
+      }
+
+      function copyVision(){
+        const ta = byId('visionTxt');
+        ta.select(); ta.setSelectionRange(0, 99999);
+        document.execCommand('copy');
+        showBanner('Vision copied to clipboard.', false);
+      }
+
+      /* ----- Peers ----- */
+      function renderPeers(){
+        const area = byId('peersArea'); area.innerHTML = '';
+        const peers = (S.peerNames||[]).filter(p => p.classId === S.currentClassId);
+        if (!peers.length){ area.textContent = '—'; return; }
+        peers.forEach(p => {
+          const g = p.gradeLevel ? ` • G${p.gradeLevel}` : '';
+          area.appendChild(el('span', `<span class="pill">${escapeHtml(p.displayName)}${g}</span>`));
+        });
+      }
+
+      /* ----- Buttons / save state ----- */
+      function updateButtons(){
+        const hasClass = !!S.currentClassId;
+        const valuesOk = hasClass && S.selectedValues.length > 0 && totalCoins() <= MAX_COINS;
+        const missionOk = hasClass && (!!S.selectedMission || (S.allowedMissions||[]).filter(m => m.classId===S.currentClassId).length===0);
+        const save = byId('saveAllBtn');
+        if (save) save.disabled = !(S.dirty && (valuesOk || missionOk));
+      }
+
+      /* Leave page guard if unsaved */
+      window.addEventListener('beforeunload', (e) => {
+        if (!S.dirty) return;
+        e.preventDefault(); e.returnValue = '';
+      });
+
+      /* Keyboard: Cmd/Ctrl+S to save */
+      window.addEventListener('keydown', (e)=>{
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='s'){
+          e.preventDefault(); if (!byId('saveAllBtn').disabled) saveAll();
+        }
+      });
+
+      /* confetti */
+      function confetti(){
+        const n = 40, D = 800;
+        for (let i=0;i<n;i++){
+          const d = document.createElement('div');
+          const size = 6 + Math.random()*6;
+          d.style.position='fixed'; d.style.top='-10px'; d.style.left=(Math.random()*100)+'%';
+          d.style.width=size+'px'; d.style.height=size+'px'; d.style.borderRadius='2px';
+          d.style.background = `hsl(${Math.random()*360} 90% 60%)`;
+          d.style.opacity='0.9'; d.style.transform=`translateY(0) rotate(0deg)`;
+          d.style.transition=`transform ${1.2+Math.random()*0.8}s cubic-bezier(.2,.8,.2,1), opacity .3s ease`;
+          d.style.zIndex=9999;
+          document.body.appendChild(d);
+          setTimeout(()=> {
+            d.style.transform=`translateY(${window.innerHeight+40}px) rotate(${(Math.random()*540-270)}deg)`;
+            d.style.opacity='0.2';
+          }, 10);
+          setTimeout(()=> d.remove(), D + 1200 + Math.random()*400);
+        }
+      }
+    </script>
+  </body>
+</html>

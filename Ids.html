@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <style>
+      body { font: 13px Arial, sans-serif; padding: 10px; }
+      .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; margin-bottom:8px; }
+      select, input, button { font-size:13px; }
+      table { width:100%; border-collapse: collapse; }
+      th, td { border-top:1px solid #eee; padding:6px; text-align:left; }
+      th { background:#f6f7f8; }
+      .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+      .btn { padding:6px 8px; border:1px solid #444; border-radius:6px; background:#fff; cursor:pointer; }
+      .small { font-size:12px; color:#666; }
+    </style>
+  </head>
+  <body>
+    <h3>ID Lookup</h3>
+    <div class="row">
+      <select id="kind" onchange="render()">
+        <option value="users">Users</option>
+        <option value="classes">Classes</option>
+        <option value="missions">Missions</option>
+        <option value="teams">Teams</option>
+      </select>
+      <input id="q" placeholder="Search name/email…" oninput="render()">
+      <button class="btn" onclick="refresh()">Refresh</button>
+      <button class="btn" onclick="buildSheet()">Create/Refresh “ID_Lookup” sheet</button>
+    </div>
+    <div class="small" id="meta"></div>
+    <table>
+      <thead id="thead"></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <script>
+      let DATA = {};
+      google.script.run.withSuccessHandler(d => { DATA = d; render(); }).api_ids_bootstrap();
+
+      function refresh(){ google.script.run.withSuccessHandler(d => { DATA = d; render(); }).api_ids_bootstrap(); }
+      function buildSheet(){ google.script.run.buildIdLookupSheet(); }
+
+      function render(){
+        const kind = document.getElementById('kind').value;
+        const q = (document.getElementById('q').value || '').toLowerCase();
+        const thead = document.getElementById('thead');
+        const tbody = document.getElementById('tbody');
+        tbody.innerHTML = '';
+
+        let rows = [];
+        if (kind === 'users') {
+          thead.innerHTML = '<tr><th>Name</th><th>Email</th><th>Role</th><th>Grade</th><th>ID</th><th></th></tr>';
+          rows = (DATA.users||[]).filter(u =>
+            u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+          ).map(u => [u.name, u.email, u.role, u.grade, u.id]);
+        } else if (kind === 'classes') {
+          thead.innerHTML = '<tr><th>Name</th><th>Type</th><th>GC Course Id</th><th>ID</th><th></th></tr>';
+          rows = (DATA.classes||[]).filter(c =>
+            c.name.toLowerCase().includes(q) || (c.type||'').toLowerCase().includes(q)
+          ).map(c => [c.name, c.type, c.classroomCourseId, c.id]);
+        } else if (kind === 'missions') {
+          thead.innerHTML = '<tr><th>Name</th><th>Active</th><th>ID</th><th></th></tr>';
+          rows = (DATA.missions||[]).filter(m =>
+            m.name.toLowerCase().includes(q)
+          ).map(m => [m.name, m.active, m.id]);
+        } else {
+          thead.innerHTML = '<tr><th>Team</th><th>Class</th><th>ID</th><th></th></tr>';
+          rows = (DATA.teams||[]).filter(t =>
+            t.name.toLowerCase().includes(q)
+          ).map(t => [t.name, (DATA.classNameById||{})[t.classId] || t.classId, t.id]);
+        }
+
+        document.getElementById('meta').textContent = `${rows.length} result(s)`;
+        rows.forEach(r => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            ${r.slice(0, r.length-1).map(x => `<td>${esc(x)}</td>`).join('')}
+            <td class="mono">${esc(r[r.length-1])}</td>
+            <td><button class="btn" onclick="copy('${r[r.length-1]}')">Copy</button></td>`;
+          tbody.appendChild(tr);
+        });
+      }
+
+      function copy(text){
+        navigator.clipboard.writeText(text);
+      }
+      function esc(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+    </script>
+  </body>
+</html>
