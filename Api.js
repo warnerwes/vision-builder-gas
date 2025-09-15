@@ -637,7 +637,25 @@ function api_getSyncSettings() {
 
   // Merge class data with sync settings
   const result = classes.map((cls) => {
-    const sync = syncSettings.find((s) => s.classId === cls.id);
+    let sync = syncSettings.find((s) => s.classId === cls.id);
+
+    // If no sync settings exist for this class, create default ones
+    if (!sync) {
+      console.log(`Creating default sync settings for class ${cls.name}`);
+      const defaultSync = {
+        id: uid_(),
+        classId: cls.id,
+        classroomCourseId: cls.classroomCourseId || "",
+        className: cls.name,
+        syncEnabled: "FALSE", // Default to disabled
+        removeMissingStudents: "FALSE",
+      };
+
+      // Insert the default sync settings
+      updateOrInsert_(SHEET_IDS.SyncSettings, ["classId"], defaultSync);
+      sync = defaultSync;
+    }
+
     console.log(`Processing class ${cls.name}:`, {
       sync,
       syncEnabled: sync?.syncEnabled,

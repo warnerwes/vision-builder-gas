@@ -244,17 +244,23 @@
         const availableCourses = data.courses || [];
         const alreadyAddedCourses = data.alreadyAdded || [];
         
-        if (availableCourses.length === 0 && alreadyAddedCourses.length === 0) {
-          coursesDiv.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">No courses found in Google Classroom.</div>';
+        // Double-check filtering: also filter out courses that are already in our local CLASSES array
+        const existingClassroomIds = new Set(CLASSES.map(cls => cls.classroomCourseId).filter(id => id));
+        const filteredAvailableCourses = availableCourses.filter(course => 
+          !existingClassroomIds.has(course.id)
+        );
+        
+        if (filteredAvailableCourses.length === 0 && alreadyAddedCourses.length === 0) {
+          coursesDiv.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">No new courses found in Google Classroom. All available courses have already been added.</div>';
           return;
         }
 
         let html = '<div style="max-height:400px; overflow-y:auto;">';
         
         // Show available courses first
-        if (availableCourses.length > 0) {
+        if (filteredAvailableCourses.length > 0) {
           html += '<h4 style="margin:16px 0 8px 0; color:#1a73e8;">Available to Add</h4>';
-          availableCourses.forEach(course => {
+          filteredAvailableCourses.forEach(course => {
             html += `
               <div style="border:1px solid #ddd; margin:8px 0; padding:12px; border-radius:4px; cursor:pointer; background:#f8f9fa;" 
                    onclick="addClass('${course.id}', '${escapeHtml(course.name)}')">
@@ -297,7 +303,9 @@
     // Double-check that this class isn't already added
     const alreadyAdded = CLASSES.some(cls => cls.classroomCourseId === classroomCourseId);
     if (alreadyAdded) {
-      alert(`"${className}" has already been added to Vision Builder.`);
+      alert(`"${className}" has already been added to Vision Builder. Please refresh the page to see the updated list.`);
+      hideAddClass();
+      loadSettings(); // Refresh the main table
       return;
     }
 
