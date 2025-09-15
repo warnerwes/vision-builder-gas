@@ -632,9 +632,17 @@ function api_getSyncSettings() {
   const classes = readRows_(SHEET_IDS.Classes);
   const syncSettings = readRows_(SHEET_IDS.SyncSettings);
 
+  console.log("All classes:", classes);
+  console.log("All sync settings:", syncSettings);
+
   // Merge class data with sync settings
   const result = classes.map((cls) => {
     const sync = syncSettings.find((s) => s.classId === cls.id);
+    console.log(`Processing class ${cls.name}:`, {
+      sync,
+      syncEnabled: sync?.syncEnabled,
+      removeMissing: sync?.removeMissingStudents,
+    });
     const syncEnabled = sync ? sync.syncEnabled === "TRUE" : false;
     const removeMissingStudents = sync
       ? sync.removeMissingStudents === "TRUE"
@@ -650,6 +658,7 @@ function api_getSyncSettings() {
     };
   });
 
+  console.log("Final result:", result);
   return { classes: result };
 }
 

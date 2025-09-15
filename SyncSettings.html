@@ -85,6 +85,8 @@
     google.script.run
       .withSuccessHandler(data => {
         CLASSES = data.classes || [];
+        console.log('Loaded sync settings data:', data);
+        console.log('Classes with sync settings:', CLASSES);
         renderTable();
         byId('loading').style.display = 'none';
         byId('classesTable').style.display = 'table';
@@ -100,6 +102,7 @@
     tbody.innerHTML = '';
 
     CLASSES.forEach(cls => {
+      console.log(`Rendering class ${cls.name}: syncEnabled=${cls.syncEnabled}, removeMissing=${cls.removeMissingStudents}`);
       const row = document.createElement('tr');
       row.innerHTML = `
         <td><strong>${escapeHtml(cls.name)}</strong></td>
