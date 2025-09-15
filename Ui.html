@@ -351,38 +351,31 @@
 
         <div class="card">
           <h3>Peers in This Class</h3>
+          <div class="muted" style="margin-bottom: 12px; font-size: 0.9em;">Click on peer names to select them for team vision creation. ✓ = vision completed, ○ = vision pending</div>
           <div id="peersArea"></div>
-        </div>
-
-        <!-- Team Vision Component -->
-        <div class="card" id="teamVisionCard">
-          <h3>Create Team Vision</h3>
-          <div class="muted" style="margin-bottom: 12px;">Select your teammates to create a shared vision based on your combined values.</div>
           
-          <div id="teamStudentSelectionArea" style="margin-bottom: 12px;">
-            <div class="muted">Loading classmates...</div>
-          </div>
+          <!-- Combined Values Preview -->
+          <div id="teamValuesPreview" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(148,163,184,.2);"></div>
           
-          <div id="selectedTeamMembersDisplay" style="margin-bottom: 12px; min-height: 20px;"></div>
-          
-          <!-- Preview of combined values -->
-          <div id="teamValuesPreview" style="margin-bottom: 12px; min-height: 20px;"></div>
-          
-          <div class="row" style="margin-bottom: 12px;">
-            <button class="btn" id="generateTeamVisionBtn" onclick="generateTeamVision()" disabled>Generate Team Vision</button>
-            <button class="btn" id="clearTeamSelectionBtn" onclick="clearTeamSelection()" disabled>Clear Selection</button>
-          </div>
-          
-          <div id="teamVisionArea" style="display: none;">
-            <h4>Team Vision</h4>
-            <div id="teamValuesDisplay" class="selected-values-display" style="margin-bottom: 8px; min-height: 20px;"></div>
-            <textarea id="teamVisionTxt" placeholder="Team vision will appear here..." readonly></textarea>
-            <div class="row" style="margin-top: 8px;">
-              <button class="btn" onclick="copyTeamVision()">Copy Vision</button>
-              <button class="btn" onclick="saveTeamVision()">Save Vision</button>
+          <!-- Team Vision Controls -->
+          <div id="teamVisionControls" style="margin-top: 12px; display: none;">
+            <div class="row" style="margin-bottom: 12px;">
+              <button class="btn" id="generateTeamVisionBtn" onclick="generateTeamVision()" disabled>Generate Team Vision</button>
+              <button class="btn" id="clearTeamSelectionBtn" onclick="clearTeamSelection()" disabled>Clear Selection</button>
+            </div>
+            
+            <div id="teamVisionArea" style="display: none;">
+              <h4>Team Vision</h4>
+              <div id="teamValuesDisplay" class="selected-values-display" style="margin-bottom: 8px; min-height: 20px;"></div>
+              <textarea id="teamVisionTxt" placeholder="Team vision will appear here..." readonly></textarea>
+              <div class="row" style="margin-top: 8px;">
+                <button class="btn" onclick="copyTeamVision()">Copy Vision</button>
+                <button class="btn" onclick="saveTeamVision()">Save Vision</button>
+              </div>
             </div>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -781,9 +774,89 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
         const area = byId('peersArea'); area.innerHTML = '';
         const peers = (S.peerNames||[]).filter(p => p.classId === S.currentClassId);
         if (!peers.length){ area.textContent = '—'; return; }
-        peers.forEach(p => {
-          const g = p.gradeLevel ? ` • G${p.gradeLevel}` : '';
-          area.appendChild(el('span', `<span class="pill">${escapeHtml(p.displayName)}${g}</span>`));
+
+        // Group peers by mission and sort by vision completion status
+        const peersWithStatus = peers.map(peer => {
+          const hasVision = S.classmatesForTeam.find(c => c.userId === peer.userId)?.hasValues || false;
+          const mission = (S.allowedMissions || []).find(m => m.classId === S.currentClassId);
+          return {
+            ...peer,
+            hasVision,
+            missionName: mission?.label || mission?.name || 'General'
+          };
+        });
+
+        // Group by mission
+        const peersByMission = {};
+        peersWithStatus.forEach(peer => {
+          if (!peersByMission[peer.missionName]) {
+            peersByMission[peer.missionName] = [];
+          }
+          peersByMission[peer.missionName].push(peer);
+        });
+
+        // Sort within each mission: completed visions first, then by name
+        Object.keys(peersByMission).forEach(mission => {
+          peersByMission[mission].sort((a, b) => {
+            if (a.hasVision !== b.hasVision) return b.hasVision - a.hasVision;
+            return a.displayName.localeCompare(b.displayName);
+          });
+        });
+
+        // Render by mission
+        Object.keys(peersByMission).forEach(mission => {
+          const missionDiv = el('div');
+          missionDiv.style.cssText = 'margin-bottom: 16px;';
+          
+          const missionHeader = el('h4');
+          missionHeader.textContent = mission;
+          missionHeader.style.cssText = 'margin: 0 0 8px 0; font-size: 14px; color: var(--muted); font-weight: 600;';
+          missionDiv.appendChild(missionHeader);
+
+          const peersContainer = el('div');
+          peersContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px;';
+          
+          peersByMission[mission].forEach(peer => {
+            const isSelected = S.selectedTeamMembers.includes(peer.userId);
+            const card = el('div');
+            card.className = 'peer-card selectable-peer';
+            card.style.cssText = `
+              padding: 8px 12px; 
+              border-radius: 8px; 
+              cursor: pointer; 
+              transition: all 0.2s;
+              border: 1px solid rgba(148,163,184,.2);
+              background: ${peer.hasVision ? 'rgba(2,6,23,.3)' : 'rgba(148,163,184,.1)'};
+              color: ${peer.hasVision ? '#e5e7eb' : '#94a3b8'};
+              ${isSelected ? 'border-color: #5b8cff; background: rgba(91,140,255,.15);' : ''}
+            `;
+            
+            card.onclick = () => toggleTeamMemberSelection(peer.userId);
+            
+            const nameSpan = el('span');
+            nameSpan.textContent = peer.displayName;
+            nameSpan.style.fontWeight = '600';
+            
+            const gradeSpan = peer.gradeLevel ? el('span') : null;
+            if (gradeSpan) {
+              gradeSpan.textContent = ` (Grade ${peer.gradeLevel})`;
+              gradeSpan.className = 'muted';
+              gradeSpan.style.fontSize = '0.9em';
+            }
+            
+            const statusIcon = el('span');
+            statusIcon.textContent = peer.hasVision ? '✓' : '○';
+            statusIcon.style.cssText = 'margin-left: 6px; font-size: 12px;';
+            
+            card.appendChild(nameSpan);
+            if (gradeSpan) card.appendChild(gradeSpan);
+            card.appendChild(statusIcon);
+            
+            peersContainer.appendChild(card);
+          });
+          
+          missionDiv.appendChild(peersContainer);
+          area.appendChild(missionDiv);
         });
       }
 
@@ -812,77 +885,18 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
       /* ----- Team Vision Functions ----- */
       function loadClassmatesForTeam() {
         if (!S.currentClassId) {
-          byId('teamVisionCard').style.display = 'none';
           return;
         }
-
-        byId('teamVisionCard').style.display = 'block';
-        byId('teamStudentSelectionArea').innerHTML = '<div class="muted">Loading classmates...</div>';
 
         google.script.run
           .withSuccessHandler(res => {
             S.classmatesForTeam = res.students || [];
-            renderTeamStudentSelection();
+            renderPeers();
           })
           .withFailureHandler(err => {
-            byId('teamStudentSelectionArea').innerHTML = `<div class="error">Error loading classmates: ${err.message}</div>`;
+            console.error('Error loading classmates:', err.message);
           })
           .api_getStudentsForVisionCombination(S.currentClassId);
-      }
-
-      function renderTeamStudentSelection() {
-        const area = byId('teamStudentSelectionArea');
-        area.innerHTML = '';
-
-        const studentsWithValues = S.classmatesForTeam.filter(s => s.hasValues);
-        const studentsWithoutValues = S.classmatesForTeam.filter(s => !s.hasValues);
-
-        if (studentsWithValues.length === 0) {
-          area.innerHTML = '<div class="muted">No classmates have selected values yet.</div>';
-          return;
-        }
-
-        // Students with values
-        studentsWithValues.forEach(student => {
-          const card = el('div');
-          card.className = 'student-card';
-          card.style.cssText = 'border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin: 4px 0; cursor: pointer; transition: all 0.2s;';
-          
-          const isSelected = S.selectedTeamMembers.includes(student.userId);
-          if (isSelected) {
-            card.style.backgroundColor = '#e3f2fd';
-            card.style.borderColor = '#2196f3';
-          }
-
-          card.onclick = () => toggleTeamMemberSelection(student.userId);
-
-          const valuesHtml = student.topValues.map(v => {
-            const emoji = v.value.emoji ? `<span class="value-emoji">${v.value.emoji}</span>` : '';
-            return `${emoji}${v.value.label} (${v.coinWeight})`;
-          }).join(', ');
-
-          card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <strong>${escapeHtml(student.displayName)}</strong>
-                ${student.gradeLevel ? `<span class="muted"> - Grade ${student.gradeLevel}</span>` : ''}
-                <div class="muted" style="font-size: 0.9em; margin-top: 4px;">${valuesHtml}</div>
-              </div>
-              <div style="font-size: 1.2em;">${isSelected ? '✓' : ''}</div>
-            </div>
-          `;
-
-          area.appendChild(card);
-        });
-
-        // Students without values
-        if (studentsWithoutValues.length > 0) {
-          const noValuesDiv = el('div');
-          noValuesDiv.className = 'muted';
-          noValuesDiv.style.cssText = 'margin-top: 12px; font-style: italic;';
-          noValuesDiv.textContent = `${studentsWithoutValues.length} classmate(s) haven't selected values yet`;
-          area.appendChild(noValuesDiv);
-        }
       }
 
       function toggleTeamMemberSelection(userId) {
@@ -892,34 +906,23 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
         } else {
           S.selectedTeamMembers.push(userId);
         }
-        renderTeamStudentSelection();
-        renderSelectedTeamMembersDisplay();
+        renderPeers();
         updateTeamValuesPreview();
         updateTeamVisionButtons();
       }
 
-      function renderSelectedTeamMembersDisplay() {
-        const area = byId('selectedTeamMembersDisplay');
-        if (S.selectedTeamMembers.length === 0) {
-          area.innerHTML = '<span class="muted">Select teammates above to see them here</span>';
-          return;
-        }
-
-        const selectedMembers = S.classmatesForTeam.filter(s => 
-          S.selectedTeamMembers.includes(s.userId)
-        );
-
-        area.innerHTML = selectedMembers.map(s => 
-          `<span class="chip" style="margin: 2px;">${escapeHtml(s.displayName)}</span>`
-        ).join('');
-      }
-
       function updateTeamValuesPreview() {
         const area = byId('teamValuesPreview');
+        const controls = byId('teamVisionControls');
+        
         if (S.selectedTeamMembers.length === 0) {
           area.innerHTML = '';
+          controls.style.display = 'none';
           return;
         }
+
+        // Show controls
+        controls.style.display = 'block';
 
         // Calculate combined values
         const valueMap = new Map();
@@ -955,7 +958,7 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
 
           area.innerHTML = `<strong>Combined Values Preview:</strong> ${valuesHtml}`;
         } else {
-          area.innerHTML = '';
+          area.innerHTML = '<span class="muted">Selected teammates haven\'t completed their values yet.</span>';
         }
       }
 
@@ -967,8 +970,7 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
 
       function clearTeamSelection() {
         S.selectedTeamMembers = [];
-        renderTeamStudentSelection();
-        renderSelectedTeamMembersDisplay();
+        renderPeers();
         updateTeamValuesPreview();
         updateTeamVisionButtons();
         byId('teamVisionArea').style.display = 'none';
