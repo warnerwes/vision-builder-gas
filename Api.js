@@ -675,10 +675,25 @@ function api_getSyncSettings() {
       syncEnabled: sync?.syncEnabled,
       removeMissing: sync?.removeMissingStudents,
     });
-    const syncEnabled = sync ? sync.syncEnabled === "TRUE" : false;
-    const removeMissingStudents = sync
-      ? sync.removeMissingStudents === "TRUE"
+
+    // More robust boolean conversion
+    const syncEnabled = sync
+      ? sync.syncEnabled === "TRUE" ||
+        sync.syncEnabled === true ||
+        sync.syncEnabled === "true"
       : false;
+    const removeMissingStudents = sync
+      ? sync.removeMissingStudents === "TRUE" ||
+        sync.removeMissingStudents === true ||
+        sync.removeMissingStudents === "true"
+      : false;
+
+    console.log(`Class ${cls.name} final values:`, {
+      syncEnabled,
+      removeMissingStudents,
+      syncEnabledType: typeof syncEnabled,
+      removeMissingType: typeof removeMissingStudents,
+    });
 
     return {
       id: cls.id,

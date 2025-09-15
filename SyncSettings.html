@@ -102,20 +102,36 @@
     tbody.innerHTML = '';
 
     CLASSES.forEach(cls => {
-      console.log(`Rendering class ${cls.name}: syncEnabled=${cls.syncEnabled}, removeMissing=${cls.removeMissingStudents}`);
+      console.log(`Rendering class ${cls.name}:`, {
+        syncEnabled: cls.syncEnabled,
+        removeMissing: cls.removeMissingStudents,
+        syncEnabledType: typeof cls.syncEnabled,
+        removeMissingType: typeof cls.removeMissingStudents,
+        fullClass: cls
+      });
+      
+      // Ensure we have proper boolean values
+      const syncEnabled = Boolean(cls.syncEnabled);
+      const removeMissingStudents = Boolean(cls.removeMissingStudents);
+      
+      console.log(`Class ${cls.name} processed values:`, {
+        syncEnabled,
+        removeMissingStudents
+      });
+      
       const row = document.createElement('tr');
       row.innerHTML = `
         <td><strong>${escapeHtml(cls.name)}</strong></td>
         <td>${escapeHtml(cls.type || '')}</td>
         <td class="classroom-id">${cls.classroomCourseId || 'Not linked'}</td>
         <td>
-          <input type="checkbox" class="checkbox" ${cls.syncEnabled ? 'checked' : ''} 
+          <input type="checkbox" class="checkbox" ${syncEnabled ? 'checked' : ''} 
                  onchange="updateSyncSetting('${cls.id}', 'syncEnabled', this.checked)">
         </td>
         <td>
-          <input type="checkbox" class="checkbox" ${cls.removeMissingStudents ? 'checked' : ''} 
+          <input type="checkbox" class="checkbox" ${removeMissingStudents ? 'checked' : ''} 
                  onchange="updateSyncSetting('${cls.id}', 'removeMissingStudents', this.checked)"
-                 ${!cls.syncEnabled ? 'disabled' : ''}>
+                 ${!syncEnabled ? 'disabled' : ''}>
         </td>
         <td>
           <button class="btn" onclick="syncClass('${cls.id}')" 
