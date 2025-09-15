@@ -535,7 +535,7 @@ function api_generateCombinedVision(payload) {
     )
     .join(", ");
 
-  const missionLine = mission?.label || mission?.name || "Unspecified";
+  let missionLine = mission?.label || mission?.name || "Unspecified";
   if (mission?.description) {
     missionLine += ` — ${String(mission.description).slice(0, 160)}`;
   }
