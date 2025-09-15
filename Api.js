@@ -640,11 +640,6 @@ function api_getSyncSettings() {
       ? sync.removeMissingStudents === "TRUE"
       : false;
 
-    console.log(
-      `Class ${cls.name}: sync=${syncEnabled}, remove=${removeMissingStudents}, syncData=`,
-      sync
-    ); // Debug log
-
     return {
       id: cls.id,
       name: cls.name,
@@ -666,11 +661,6 @@ function api_updateSyncSettings(payload) {
   }
 
   const { classId, syncEnabled, removeMissingStudents } = payload || {};
-  console.log("Updating sync settings:", {
-    classId,
-    syncEnabled,
-    removeMissingStudents,
-  }); // Debug log
   if (!classId) {
     throw new Error("classId required.");
   }
@@ -990,9 +980,25 @@ function api_getAvailableClassroomCourses() {
         description: course.descriptionHeading || "",
         room: course.room || "",
         enrollmentCode: course.enrollmentCode || "",
+        alreadyAdded: false,
       }));
 
-    return { courses: availableCourses };
+    const alreadyAddedCourses = courses
+      .filter((course) => existingClassroomIds.has(course.id))
+      .map((course) => ({
+        id: course.id,
+        name: course.name,
+        section: course.section || "",
+        description: course.descriptionHeading || "",
+        room: course.room || "",
+        enrollmentCode: course.enrollmentCode || "",
+        alreadyAdded: true,
+      }));
+
+    return {
+      courses: availableCourses,
+      alreadyAdded: alreadyAddedCourses,
+    };
   } catch (error) {
     throw new Error(`Failed to fetch Classroom courses: ${error.message}`);
   }
