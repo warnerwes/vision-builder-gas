@@ -35,11 +35,30 @@ function ensureVisionSheet_() {
   }
 }
 
-function openClassroomImport() {
-  const html = HtmlService.createHtmlOutputFromFile("AdminImport")
-    .setWidth(520)
-    .setHeight(520);
-  SpreadsheetApp.getUi().showModalDialog(html, "Import from Google Classroom");
+// Quick sync all enabled classes
+function syncAllEnabledClasses() {
+  const me = getMe_();
+  if (!me || (me.role !== "TEACHER" && me.role !== "ADMIN")) {
+    SpreadsheetApp.getUi().alert("Teacher only.");
+    return;
+  }
+
+  try {
+    const result = api_syncAllEnabled();
+    let message = `Sync completed!\n\n`;
+    message += `Classes processed: ${result.summary.totalClasses}\n`;
+    message += `Added: ${result.summary.totalAdded}\n`;
+    message += `Removed: ${result.summary.totalRemoved}\n`;
+    message += `Updated: ${result.summary.totalUpdated}\n\n`;
+
+    if (result.results.some((r) => r.status === "error")) {
+      message += `Errors occurred. Check sync settings for details.`;
+    }
+
+    SpreadsheetApp.getUi().alert(message);
+  } catch (error) {
+    SpreadsheetApp.getUi().alert(`Sync failed: ${error.message}`);
+  }
 }
 
 // Create sync settings sheet if missing
@@ -76,7 +95,7 @@ function onOpen() {
     .createMenu("Vision Builder")
     .addItem("Open Student Web App (link)", "showWebAppLink")
     .addItem("Classroom Sync Settings…", "openSyncSettings") // NEW: sync settings
-    .addItem("Import from Classroom…", "openClassroomImport") // Legacy import
+    .addItem("Sync All Enabled Classes", "syncAllEnabledClasses") // NEW: quick sync
     .addSeparator()
     .addItem("Build human-friendly VIEW sheets", "buildViews") // NEW: readable joins
     .addItem("Generate missing IDs (all tabs)", "fillMissingIdsAll") // NEW: IDs

@@ -928,3 +928,104 @@ function api_gc_syncClassWithRemoval(classroomCourseId, removeMissing = false) {
     }, -${removedEnrollments}, ~${updatedTeachers}`,
   };
 }
+
+// === CLASSROOM COURSE MANAGEMENT ===
+
+// Get available Google Classroom courses
+function api_getAvailableClassroomCourses() {
+  const me = getMe_();
+  if (!me || (me.role !== "TEACHER" && me.role !== "ADMIN")) {
+    throw new Error("Teacher only.");
+  }
+
+  try {
+    const courses =
+      Classroom.Courses.list({
+        courseStates: ["ACTIVE"],
+        teacherId: "me",
+      }).courses || [];
+
+    // Get existing classes to filter out already imported ones
+    const existingClasses = readRows_(SHEET_IDS.Classes);
+    const existingClassroomIds = new Set(
+      existingClasses.map((c) => c.classroomCourseId).filter((id) => id)
+    );
+
+    const availableCourses = courses
+      .filter((course) => !existingClassroomIds.has(course.id))
+      .map((course) => ({
+        id: course.id,
+        name: course.name,
+        section: course.section || "",
+        description: course.descriptionHeading || "",
+        room: course.room || "",
+        enrollmentCode: course.enrollmentCode || "",
+      }));
+
+    return { courses: availableCourses };
+  } catch (error) {
+    throw new Error(`Failed to fetch Classroom courses: ${error.message}`);
+  }
+}
+
+// Add a new class from Google Classroom
+function api_addClassFromClassroom(payload) {
+  const me = getMe_();
+  if (!me || (me.role !== "TEACHER" && me.role !== "ADMIN")) {
+    throw new Error("Teacher only.");
+  }
+
+  const { classroomCourseId, classType = "REGULAR" } = payload || {};
+  if (!classroomCourseId) {
+    throw new Error("classroomCourseId required.");
+  }
+
+  // Check if class already exists
+  const existingClasses = readRows_(SHEET_IDS.Classes);
+  if (existingClasses.some((c) => c.classroomCourseId === classroomCourseId)) {
+    throw new Error("Class already exists in system.");
+  }
+
+  try {
+    // Get course details from Classroom
+    const course = Classroom.Courses.get(classroomCourseId);
+    if (!course) {
+      throw new Error("Course not found in Google Classroom.");
+    }
+
+    // Create new class
+    const classId = uid_();
+    const newClass = {
+      id: classId,
+      name: course.name,
+      type: classType,
+      classroomCourseId: classroomCourseId,
+      description: course.descriptionHeading || "",
+      room: course.room || "",
+      enrollmentCode: course.enrollmentCode || "",
+    };
+
+    // Insert class
+    appendMany_(SHEET_IDS.Classes, [newClass]);
+
+    // Create sync settings for the new class
+    ensureSyncSettingsSheet_();
+    updateOrInsert_(SHEET_IDS.SyncSettings, ["classId"], {
+      id: uid_(),
+      classId: classId,
+      classroomCourseId: classroomCourseId,
+      className: course.name,
+      syncEnabled: "FALSE", // Default to disabled
+      removeMissingStudents: "FALSE",
+    });
+
+    return {
+      ok: true,
+      classId: classId,
+      className: course.name,
+      message: `Added "${course.name}" to system. Sync is disabled by default.`,
+    };
+  } catch (error) {
+    throw new Error(`Failed to add class: ${error.message}`);
+  }
+}
