@@ -630,31 +630,45 @@ function api_getSyncSettings() {
 
   ensureSyncSettingsSheet_();
   const classes = readRows_(SHEET_IDS.Classes);
-  const syncSettings = readRows_(SHEET_IDS.SyncSettings);
+  let syncSettings = readRows_(SHEET_IDS.SyncSettings);
 
   console.log("All classes:", classes);
   console.log("All sync settings:", syncSettings);
 
+  // First, identify classes that need default sync settings
+  const classesNeedingDefaults = classes.filter(
+    (cls) => !syncSettings.some((s) => s.classId === cls.id)
+  );
+
+  // Create default sync settings for classes that need them
+  if (classesNeedingDefaults.length > 0) {
+    console.log(
+      `Creating default sync settings for ${classesNeedingDefaults.length} classes`
+    );
+    const defaultSyncSettings = classesNeedingDefaults.map((cls) => ({
+      id: uid_(),
+      classId: cls.id,
+      classroomCourseId: cls.classroomCourseId || "",
+      className: cls.name,
+      syncEnabled: "FALSE", // Default to disabled
+      removeMissingStudents: "FALSE",
+    }));
+
+    // Insert all default sync settings at once
+    updateOrInsertMany_(
+      SHEET_IDS.SyncSettings,
+      ["classId"],
+      defaultSyncSettings
+    );
+
+    // Re-read sync settings to get the updated data
+    syncSettings = readRows_(SHEET_IDS.SyncSettings);
+    console.log("Updated sync settings after creating defaults:", syncSettings);
+  }
+
   // Merge class data with sync settings
   const result = classes.map((cls) => {
-    let sync = syncSettings.find((s) => s.classId === cls.id);
-
-    // If no sync settings exist for this class, create default ones
-    if (!sync) {
-      console.log(`Creating default sync settings for class ${cls.name}`);
-      const defaultSync = {
-        id: uid_(),
-        classId: cls.id,
-        classroomCourseId: cls.classroomCourseId || "",
-        className: cls.name,
-        syncEnabled: "FALSE", // Default to disabled
-        removeMissingStudents: "FALSE",
-      };
-
-      // Insert the default sync settings
-      updateOrInsert_(SHEET_IDS.SyncSettings, ["classId"], defaultSync);
-      sync = defaultSync;
-    }
+    const sync = syncSettings.find((s) => s.classId === cls.id);
 
     console.log(`Processing class ${cls.name}:`, {
       sync,
