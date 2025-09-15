@@ -329,9 +329,6 @@ function api_suggestTeamsByValues(classId) {
 }
 
 // OpenAI integration functions
-const OPENAI_MODEL = "gpt-5-mini";
-const OPENAI_URL = "https://api.openai.com/v1/responses";
-
 function extractOpenAIText_(json) {
   if (typeof json?.output_text === "string" && json.output_text.trim()) {
     return json.output_text.trim();
@@ -361,7 +358,7 @@ function extractOpenAIText_(json) {
 
 function callOpenAIPlain_(inputStr, tokenBudget = 160) {
   const body = {
-    model: OPENAI_MODEL,
+    model: "gpt-5-mini",
     input: inputStr, // ← single string, simplest valid shape
     text: { verbosity: "low" }, // concise
     reasoning: { effort: "minimal" }, // fast, few reasoning tokens
@@ -369,7 +366,7 @@ function callOpenAIPlain_(inputStr, tokenBudget = 160) {
     store: false, // student privacy; flip to true if you want
   };
 
-  const resp = UrlFetchApp.fetch(OPENAI_URL, {
+  const resp = UrlFetchApp.fetch("https://api.openai.com/v1/responses", {
     method: "post",
     contentType: "application/json",
     payload: JSON.stringify(body),
