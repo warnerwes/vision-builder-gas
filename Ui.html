@@ -240,6 +240,44 @@
       .spin { width: 56px; height: 56px; border-radius: 50%;
         border: 4px solid rgba(122,167,255,.25); border-top-color: #7aa7ff; animation: r 1s linear infinite; }
       @keyframes r { to { transform: rotate(360deg); } }
+
+      /* Vision combination styles */
+      .student-card {
+        border: 1px solid rgba(148,163,184,.2);
+        border-radius: 8px;
+        padding: 12px;
+        margin: 4px 0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: rgba(2,6,23,.3);
+      }
+      .student-card:hover {
+        border-color: rgba(91,140,255,.4);
+        background: rgba(91,140,255,.05);
+        transform: translateY(-1px);
+      }
+      .student-card.selected {
+        background: rgba(91,140,255,.15);
+        border-color: #5b8cff;
+        box-shadow: 0 4px 12px rgba(91,140,255,.2);
+      }
+      .chip {
+        display: inline-block;
+        padding: 4px 8px;
+        margin: 2px;
+        background: rgba(91,140,255,.15);
+        border: 1px solid rgba(91,140,255,.3);
+        border-radius: 12px;
+        font-size: 12px;
+        color: #cbd5e1;
+      }
+      .error {
+        color: #f87171;
+        background: rgba(239,68,68,.1);
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(239,68,68,.2);
+      }
     </style>
   </head>
   <body>
@@ -315,6 +353,36 @@
           <h3>Peers in This Class</h3>
           <div id="peersArea"></div>
         </div>
+
+        <!-- Team Vision Component -->
+        <div class="card" id="teamVisionCard">
+          <h3>Create Team Vision</h3>
+          <div class="muted" style="margin-bottom: 12px;">Select your teammates to create a shared vision based on your combined values.</div>
+          
+          <div id="teamStudentSelectionArea" style="margin-bottom: 12px;">
+            <div class="muted">Loading classmates...</div>
+          </div>
+          
+          <div id="selectedTeamMembersDisplay" style="margin-bottom: 12px; min-height: 20px;"></div>
+          
+          <!-- Preview of combined values -->
+          <div id="teamValuesPreview" style="margin-bottom: 12px; min-height: 20px;"></div>
+          
+          <div class="row" style="margin-bottom: 12px;">
+            <button class="btn" id="generateTeamVisionBtn" onclick="generateTeamVision()" disabled>Generate Team Vision</button>
+            <button class="btn" id="clearTeamSelectionBtn" onclick="clearTeamSelection()" disabled>Clear Selection</button>
+          </div>
+          
+          <div id="teamVisionArea" style="display: none;">
+            <h4>Team Vision</h4>
+            <div id="teamValuesDisplay" class="selected-values-display" style="margin-bottom: 8px; min-height: 20px;"></div>
+            <textarea id="teamVisionTxt" placeholder="Team vision will appear here..." readonly></textarea>
+            <div class="row" style="margin-top: 8px;">
+              <button class="btn" onclick="copyTeamVision()">Copy Vision</button>
+              <button class="btn" onclick="saveTeamVision()">Save Vision</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -324,7 +392,9 @@
         me:null, classes:[], values:[], allowedMissions:[], peerNames:[],
         myValueSelections:[], myMissionSelections:[],
         currentClassId:null, selectedValues:[], coins:{}, selectedMission:null,
-        dirty:false
+        dirty:false,
+        // Team vision state
+        classmatesForTeam:[], selectedTeamMembers:[], teamVisionData:null
       };
 
       const MAX_VALUES = 3, MAX_COINS = 5;
@@ -395,6 +465,7 @@
         renderMissions();
         renderPeers();
         renderSelectedValuesDisplay();
+        loadClassmatesForTeam();
         S.dirty = false;
         updateButtons();
       }
@@ -737,6 +808,236 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
           e.preventDefault(); if (!byId('saveAllBtn').disabled) saveAll();
         }
       });
+
+      /* ----- Team Vision Functions ----- */
+      function loadClassmatesForTeam() {
+        if (!S.currentClassId) {
+          byId('teamVisionCard').style.display = 'none';
+          return;
+        }
+
+        byId('teamVisionCard').style.display = 'block';
+        byId('teamStudentSelectionArea').innerHTML = '<div class="muted">Loading classmates...</div>';
+
+        google.script.run
+          .withSuccessHandler(res => {
+            S.classmatesForTeam = res.students || [];
+            renderTeamStudentSelection();
+          })
+          .withFailureHandler(err => {
+            byId('teamStudentSelectionArea').innerHTML = `<div class="error">Error loading classmates: ${err.message}</div>`;
+          })
+          .api_getStudentsForVisionCombination(S.currentClassId);
+      }
+
+      function renderTeamStudentSelection() {
+        const area = byId('teamStudentSelectionArea');
+        area.innerHTML = '';
+
+        const studentsWithValues = S.classmatesForTeam.filter(s => s.hasValues);
+        const studentsWithoutValues = S.classmatesForTeam.filter(s => !s.hasValues);
+
+        if (studentsWithValues.length === 0) {
+          area.innerHTML = '<div class="muted">No classmates have selected values yet.</div>';
+          return;
+        }
+
+        // Students with values
+        studentsWithValues.forEach(student => {
+          const card = el('div');
+          card.className = 'student-card';
+          card.style.cssText = 'border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin: 4px 0; cursor: pointer; transition: all 0.2s;';
+          
+          const isSelected = S.selectedTeamMembers.includes(student.userId);
+          if (isSelected) {
+            card.style.backgroundColor = '#e3f2fd';
+            card.style.borderColor = '#2196f3';
+          }
+
+          card.onclick = () => toggleTeamMemberSelection(student.userId);
+
+          const valuesHtml = student.topValues.map(v => {
+            const emoji = v.value.emoji ? `<span class="value-emoji">${v.value.emoji}</span>` : '';
+            return `${emoji}${v.value.label} (${v.coinWeight})`;
+          }).join(', ');
+
+          card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>${escapeHtml(student.displayName)}</strong>
+                ${student.gradeLevel ? `<span class="muted"> - Grade ${student.gradeLevel}</span>` : ''}
+                <div class="muted" style="font-size: 0.9em; margin-top: 4px;">${valuesHtml}</div>
+              </div>
+              <div style="font-size: 1.2em;">${isSelected ? '✓' : ''}</div>
+            </div>
+          `;
+
+          area.appendChild(card);
+        });
+
+        // Students without values
+        if (studentsWithoutValues.length > 0) {
+          const noValuesDiv = el('div');
+          noValuesDiv.className = 'muted';
+          noValuesDiv.style.cssText = 'margin-top: 12px; font-style: italic;';
+          noValuesDiv.textContent = `${studentsWithoutValues.length} classmate(s) haven't selected values yet`;
+          area.appendChild(noValuesDiv);
+        }
+      }
+
+      function toggleTeamMemberSelection(userId) {
+        const idx = S.selectedTeamMembers.indexOf(userId);
+        if (idx >= 0) {
+          S.selectedTeamMembers.splice(idx, 1);
+        } else {
+          S.selectedTeamMembers.push(userId);
+        }
+        renderTeamStudentSelection();
+        renderSelectedTeamMembersDisplay();
+        updateTeamValuesPreview();
+        updateTeamVisionButtons();
+      }
+
+      function renderSelectedTeamMembersDisplay() {
+        const area = byId('selectedTeamMembersDisplay');
+        if (S.selectedTeamMembers.length === 0) {
+          area.innerHTML = '<span class="muted">Select teammates above to see them here</span>';
+          return;
+        }
+
+        const selectedMembers = S.classmatesForTeam.filter(s => 
+          S.selectedTeamMembers.includes(s.userId)
+        );
+
+        area.innerHTML = selectedMembers.map(s => 
+          `<span class="chip" style="margin: 2px;">${escapeHtml(s.displayName)}</span>`
+        ).join('');
+      }
+
+      function updateTeamValuesPreview() {
+        const area = byId('teamValuesPreview');
+        if (S.selectedTeamMembers.length === 0) {
+          area.innerHTML = '';
+          return;
+        }
+
+        // Calculate combined values
+        const valueMap = new Map();
+        S.selectedTeamMembers.forEach(userId => {
+          const student = S.classmatesForTeam.find(s => s.userId === userId);
+          if (student && student.topValues) {
+            student.topValues.forEach(value => {
+              const key = value.valueId;
+              if (!valueMap.has(key)) {
+                valueMap.set(key, {
+                  label: value.value.label,
+                  emoji: value.value.emoji || '',
+                  totalCoins: 0,
+                  students: []
+                });
+              }
+              const entry = valueMap.get(key);
+              entry.totalCoins += value.coinWeight;
+              entry.students.push(student.displayName);
+            });
+          }
+        });
+
+        const combinedValues = Array.from(valueMap.values())
+          .sort((a, b) => b.totalCoins - a.totalCoins)
+          .slice(0, 3);
+
+        if (combinedValues.length > 0) {
+          const valuesHtml = combinedValues.map(v => {
+            const emoji = v.emoji ? `<span class="value-emoji">${v.emoji}</span>` : '';
+            return `${emoji}${v.label} (${v.totalCoins} coins from ${v.students.join(', ')})`;
+          }).join(', ');
+
+          area.innerHTML = `<strong>Combined Values Preview:</strong> ${valuesHtml}`;
+        } else {
+          area.innerHTML = '';
+        }
+      }
+
+      function updateTeamVisionButtons() {
+        const canGenerate = S.selectedTeamMembers.length >= 2;
+        byId('generateTeamVisionBtn').disabled = !canGenerate;
+        byId('clearTeamSelectionBtn').disabled = S.selectedTeamMembers.length === 0;
+      }
+
+      function clearTeamSelection() {
+        S.selectedTeamMembers = [];
+        renderTeamStudentSelection();
+        renderSelectedTeamMembersDisplay();
+        updateTeamValuesPreview();
+        updateTeamVisionButtons();
+        byId('teamVisionArea').style.display = 'none';
+        S.teamVisionData = null;
+      }
+
+      function generateTeamVision() {
+        if (S.selectedTeamMembers.length < 2) {
+          showBanner('Select at least 2 teammates.', true);
+          return;
+        }
+
+        const mission = (S.allowedMissions || []).find(m => m.classId === S.currentClassId) || null;
+
+        byId('teamVisionTxt').value = '✨ Generating team vision…';
+        byId('teamVisionArea').style.display = 'block';
+
+        google.script.run
+          .withSuccessHandler(res => {
+            S.teamVisionData = res;
+            byId('teamVisionTxt').value = res.text || '';
+            renderTeamValuesDisplay();
+            showBanner('Team vision generated.', false);
+            confetti();
+          })
+          .withFailureHandler(err => {
+            byId('teamVisionTxt').value = `Error: ${err.message}`;
+            showBanner('Failed to generate team vision.', true);
+          })
+          .api_generateCombinedVision({
+            classId: S.currentClassId,
+            studentIds: S.selectedTeamMembers,
+            mission: mission ? { id: mission.id, label: mission.label || mission.name, description: mission.description || '' } : null
+          });
+      }
+
+      function renderTeamValuesDisplay() {
+        const area = byId('teamValuesDisplay');
+        if (!S.teamVisionData || !S.teamVisionData.combinedValues) {
+          area.innerHTML = '';
+          return;
+        }
+
+        const valuesHtml = S.teamVisionData.combinedValues.map(v => {
+          const emoji = v.emoji ? `<span class="value-emoji">${v.emoji}</span>` : '';
+          return `${emoji}${v.label} (${v.totalCoins} coins from ${v.students.join(', ')})`;
+        }).join(', ');
+
+        area.innerHTML = `<strong>Team Values:</strong> ${valuesHtml}`;
+      }
+
+      function copyTeamVision() {
+        const ta = byId('teamVisionTxt');
+        ta.select();
+        ta.setSelectionRange(0, 99999);
+        document.execCommand('copy');
+        showBanner('Team vision copied to clipboard.', false);
+      }
+
+      function saveTeamVision() {
+        if (!S.teamVisionData || !S.teamVisionData.text) {
+          showBanner('No team vision to save.', true);
+          return;
+        }
+
+        // For now, just copy to clipboard since we don't have a specific save API for team visions
+        copyTeamVision();
+        showBanner('Team vision copied to clipboard. You can paste it wherever needed.', false);
+      }
 
       /* confetti */
       function confetti(){
