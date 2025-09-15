@@ -351,7 +351,7 @@
 
         <div class="card">
           <h3>Peers in This Class</h3>
-          <div class="muted" style="margin-bottom: 12px; font-size: 0.9em;">Click on peer names to select them for team vision creation. ✓ = vision completed, ○ = vision pending</div>
+          <div class="muted" style="margin-bottom: 12px; font-size: 0.9em;">Click on peer names to select them for team vision creation. Students are grouped by mission and vision completion status.</div>
           <div id="peersArea"></div>
           
           <!-- Combined Values Preview -->
@@ -775,7 +775,7 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
         const peers = (S.peerNames||[]).filter(p => p.classId === S.currentClassId);
         if (!peers.length){ area.textContent = '—'; return; }
 
-        // Group peers by mission and sort by vision completion status
+        // Group peers by vision completion status first, then by mission
         const peersWithStatus = peers.map(peer => {
           const hasVision = S.classmatesForTeam.find(c => c.userId === peer.userId)?.hasValues || false;
           const mission = (S.allowedMissions || []).find(m => m.classId === S.currentClassId);
@@ -786,25 +786,26 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
           };
         });
 
-        // Group by mission
-        const peersByMission = {};
-        peersWithStatus.forEach(peer => {
-          if (!peersByMission[peer.missionName]) {
-            peersByMission[peer.missionName] = [];
+        // Separate into two groups: completed and pending
+        const completedPeers = peersWithStatus.filter(peer => peer.hasVision);
+        const pendingPeers = peersWithStatus.filter(peer => !peer.hasVision);
+
+        // Group completed peers by mission
+        const completedByMission = {};
+        completedPeers.forEach(peer => {
+          if (!completedByMission[peer.missionName]) {
+            completedByMission[peer.missionName] = [];
           }
-          peersByMission[peer.missionName].push(peer);
+          completedByMission[peer.missionName].push(peer);
         });
 
-        // Sort within each mission: completed visions first, then by name
-        Object.keys(peersByMission).forEach(mission => {
-          peersByMission[mission].sort((a, b) => {
-            if (a.hasVision !== b.hasVision) return b.hasVision - a.hasVision;
-            return a.displayName.localeCompare(b.displayName);
-          });
+        // Sort within each mission by name
+        Object.keys(completedByMission).forEach(mission => {
+          completedByMission[mission].sort((a, b) => a.displayName.localeCompare(b.displayName));
         });
 
-        // Render by mission
-        Object.keys(peersByMission).forEach(mission => {
+        // Render completed peers by mission
+        Object.keys(completedByMission).forEach(mission => {
           const missionDiv = el('div');
           missionDiv.style.cssText = 'margin-bottom: 16px;';
           
@@ -816,7 +817,7 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
           const peersContainer = el('div');
           peersContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px;';
           
-          peersByMission[mission].forEach(peer => {
+          completedByMission[mission].forEach(peer => {
             const isSelected = S.selectedTeamMembers.includes(peer.userId);
             const card = el('div');
             card.className = 'peer-card selectable-peer';
@@ -826,8 +827,8 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
               cursor: pointer; 
               transition: all 0.2s;
               border: 1px solid rgba(148,163,184,.2);
-              background: ${peer.hasVision ? 'rgba(2,6,23,.3)' : 'rgba(148,163,184,.1)'};
-              color: ${peer.hasVision ? '#e5e7eb' : '#94a3b8'};
+              background: rgba(2,6,23,.3);
+              color: #e5e7eb;
               ${isSelected ? 'border-color: #5b8cff; background: rgba(91,140,255,.15);' : ''}
             `;
             
@@ -844,13 +845,8 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
               gradeSpan.style.fontSize = '0.9em';
             }
             
-            const statusIcon = el('span');
-            statusIcon.textContent = peer.hasVision ? '✓' : '○';
-            statusIcon.style.cssText = 'margin-left: 6px; font-size: 12px;';
-            
             card.appendChild(nameSpan);
             if (gradeSpan) card.appendChild(gradeSpan);
-            card.appendChild(statusIcon);
             
             peersContainer.appendChild(card);
           });
@@ -858,6 +854,54 @@ This year I will pursue ${missionStr} by serving others, practicing consistently
           missionDiv.appendChild(peersContainer);
           area.appendChild(missionDiv);
         });
+
+        // Render pending peers if any
+        if (pendingPeers.length > 0) {
+          const pendingDiv = el('div');
+          pendingDiv.style.cssText = 'margin-bottom: 16px;';
+          
+          const pendingHeader = el('h4');
+          pendingHeader.textContent = 'Vision Pending';
+          pendingHeader.style.cssText = 'margin: 0 0 8px 0; font-size: 14px; color: var(--muted); font-weight: 600;';
+          pendingDiv.appendChild(pendingHeader);
+
+          const pendingContainer = el('div');
+          pendingContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px;';
+          
+          // Sort pending peers by name
+          pendingPeers.sort((a, b) => a.displayName.localeCompare(b.displayName));
+          
+          pendingPeers.forEach(peer => {
+            const card = el('div');
+            card.className = 'peer-card';
+            card.style.cssText = `
+              padding: 8px 12px; 
+              border-radius: 8px; 
+              border: 1px solid rgba(148,163,184,.2);
+              background: rgba(148,163,184,.1);
+              color: #94a3b8;
+            `;
+            
+            const nameSpan = el('span');
+            nameSpan.textContent = peer.displayName;
+            nameSpan.style.fontWeight = '600';
+            
+            const gradeSpan = peer.gradeLevel ? el('span') : null;
+            if (gradeSpan) {
+              gradeSpan.textContent = ` (Grade ${peer.gradeLevel})`;
+              gradeSpan.className = 'muted';
+              gradeSpan.style.fontSize = '0.9em';
+            }
+            
+            card.appendChild(nameSpan);
+            if (gradeSpan) card.appendChild(gradeSpan);
+            
+            pendingContainer.appendChild(card);
+          });
+          
+          pendingDiv.appendChild(pendingContainer);
+          area.appendChild(pendingDiv);
+        }
       }
 
       /* ----- Buttons / save state ----- */
