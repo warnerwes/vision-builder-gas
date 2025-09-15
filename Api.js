@@ -635,15 +635,23 @@ function api_getSyncSettings() {
   // Merge class data with sync settings
   const result = classes.map((cls) => {
     const sync = syncSettings.find((s) => s.classId === cls.id);
+    const syncEnabled = sync ? sync.syncEnabled === "TRUE" : false;
+    const removeMissingStudents = sync
+      ? sync.removeMissingStudents === "TRUE"
+      : false;
+
+    console.log(
+      `Class ${cls.name}: sync=${syncEnabled}, remove=${removeMissingStudents}, syncData=`,
+      sync
+    ); // Debug log
+
     return {
       id: cls.id,
       name: cls.name,
       type: cls.type,
       classroomCourseId: cls.classroomCourseId || "",
-      syncEnabled: sync ? sync.syncEnabled === "TRUE" : false,
-      removeMissingStudents: sync
-        ? sync.removeMissingStudents === "TRUE"
-        : false,
+      syncEnabled: syncEnabled,
+      removeMissingStudents: removeMissingStudents,
     };
   });
 
@@ -658,6 +666,11 @@ function api_updateSyncSettings(payload) {
   }
 
   const { classId, syncEnabled, removeMissingStudents } = payload || {};
+  console.log("Updating sync settings:", {
+    classId,
+    syncEnabled,
+    removeMissingStudents,
+  }); // Debug log
   if (!classId) {
     throw new Error("classId required.");
   }
@@ -669,14 +682,31 @@ function api_updateSyncSettings(payload) {
     throw new Error("Class not found.");
   }
 
-  updateOrInsert_(SHEET_IDS.SyncSettings, ["classId"], {
-    id: uid_(),
+  // Check if sync settings already exist for this class
+  const existingSyncSettings = readRows_(SHEET_IDS.SyncSettings);
+  const existingSync = existingSyncSettings.find((s) => s.classId === classId);
+
+  const syncData = {
     classId,
     classroomCourseId: cls.classroomCourseId || "",
     className: cls.name,
     syncEnabled: syncEnabled ? "TRUE" : "FALSE",
     removeMissingStudents: removeMissingStudents ? "TRUE" : "FALSE",
-  });
+  };
+
+  if (existingSync) {
+    // Update existing record, keep the same ID
+    updateOrInsert_(SHEET_IDS.SyncSettings, ["classId"], {
+      ...syncData,
+      id: existingSync.id,
+    });
+  } else {
+    // Create new record with new ID
+    updateOrInsert_(SHEET_IDS.SyncSettings, ["classId"], {
+      ...syncData,
+      id: uid_(),
+    });
+  }
 
   return { ok: true };
 }

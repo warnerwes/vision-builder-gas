@@ -84,6 +84,7 @@
     google.script.run
       .withSuccessHandler(data => {
         CLASSES = data.classes || [];
+        console.log('Loaded classes:', CLASSES); // Debug log
         renderTable();
         byId('loading').style.display = 'none';
         byId('classesTable').style.display = 'table';
@@ -125,18 +126,21 @@
   }
 
   function updateSyncSetting(classId, setting, value) {
+    // Update local state immediately
+    const cls = CLASSES.find(c => c.id === classId);
+    console.log('Updating setting:', { classId, setting, value, cls }); // Debug log
+    if (cls) {
+      cls[setting] = value;
+      // If sync is disabled, also disable remove missing
+      if (setting === 'syncEnabled' && !value) {
+        cls.removeMissingStudents = false;
+      }
+    }
+
     google.script.run
       .withSuccessHandler(() => {
-        // Update local state
-        const cls = CLASSES.find(c => c.id === classId);
-        if (cls) {
-          cls[setting] = value;
-          // If sync is disabled, also disable remove missing
-          if (setting === 'syncEnabled' && !value) {
-            cls.removeMissingStudents = false;
-            renderTable(); // Re-render to update checkboxes
-          }
-        }
+        // Re-render to update checkboxes after successful save
+        renderTable();
       })
       .withFailureHandler(error => {
         alert(`Error updating setting: ${error.message}`);
@@ -144,8 +148,8 @@
       })
       .api_updateSyncSettings({
         classId: classId,
-        syncEnabled: setting === 'syncEnabled' ? value : CLASSES.find(c => c.id === classId)?.syncEnabled,
-        removeMissingStudents: setting === 'removeMissingStudents' ? value : CLASSES.find(c => c.id === classId)?.removeMissingStudents
+        syncEnabled: setting === 'syncEnabled' ? value : cls?.syncEnabled,
+        removeMissingStudents: setting === 'removeMissingStudents' ? value : cls?.removeMissingStudents
       });
   }
 
