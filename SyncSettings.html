@@ -1,0 +1,216 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Classroom Sync Settings</title>
+  <style>
+    body { font:14px Arial, sans-serif; padding:20px; max-width:1000px; margin:0 auto; }
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .btn { padding:8px 16px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; margin:4px; }
+    .btn.primary { background:#1a73e8; color:#fff; border-color:#1a73e8; }
+    .btn.success { background:#34a853; color:#fff; border-color:#34a853; }
+    .btn.danger { background:#ea4335; color:#fff; border-color:#ea4335; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; }
+    table { width:100%; border-collapse:collapse; margin-top:16px; }
+    th,td { border:1px solid #ddd; padding:12px; text-align:left; }
+    th { background:#f5f5f5; font-weight:600; }
+    .status { padding:4px 8px; border-radius:4px; font-size:12px; font-weight:600; }
+    .status.enabled { background:#e8f5e8; color:#137333; }
+    .status.disabled { background:#fce8e6; color:#d93025; }
+    .warning { background:#fef7e0; border:1px solid #f9ab00; padding:12px; border-radius:6px; margin:16px 0; }
+    .sync-summary { background:#e8f0fe; border:1px solid #1a73e8; padding:12px; border-radius:6px; margin:16px 0; }
+    .checkbox { transform:scale(1.2); margin:0 8px; }
+    .classroom-id { font-family:monospace; font-size:12px; color:#666; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>Classroom Sync Settings</h2>
+    <div>
+      <button class="btn primary" onclick="syncAll()" id="syncBtn">Sync All Enabled</button>
+      <button class="btn" onclick="loadSettings()">Refresh</button>
+    </div>
+  </div>
+
+  <div class="warning">
+    <strong>⚠️ Important:</strong> The "Remove Missing Students" option will permanently remove students from your class if they're no longer in the Google Classroom roster. Use with caution!
+  </div>
+
+  <div id="syncResults" style="display:none;"></div>
+
+  <table id="classesTable">
+    <thead>
+      <tr>
+        <th>Class Name</th>
+        <th>Type</th>
+        <th>Classroom ID</th>
+        <th>Sync Enabled</th>
+        <th>Remove Missing</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div id="loading" style="text-align:center; padding:20px; display:none;">
+    Loading settings...
+  </div>
+
+<script>
+  let CLASSES = [];
+
+  function init() {
+    loadSettings();
+  }
+
+  function loadSettings() {
+    byId('loading').style.display = 'block';
+    byId('classesTable').style.display = 'none';
+    
+    google.script.run
+      .withSuccessHandler(data => {
+        CLASSES = data.classes || [];
+        renderTable();
+        byId('loading').style.display = 'none';
+        byId('classesTable').style.display = 'table';
+      })
+      .withFailureHandler(error => {
+        byId('loading').innerHTML = `Error: ${error.message}`;
+      })
+      .api_getSyncSettings();
+  }
+
+  function renderTable() {
+    const tbody = byId('classesTable').querySelector('tbody');
+    tbody.innerHTML = '';
+
+    CLASSES.forEach(cls => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td><strong>${escapeHtml(cls.name)}</strong></td>
+        <td>${escapeHtml(cls.type || '')}</td>
+        <td class="classroom-id">${cls.classroomCourseId || 'Not linked'}</td>
+        <td>
+          <input type="checkbox" class="checkbox" ${cls.syncEnabled ? 'checked' : ''} 
+                 onchange="updateSyncSetting('${cls.id}', 'syncEnabled', this.checked)">
+        </td>
+        <td>
+          <input type="checkbox" class="checkbox" ${cls.removeMissingStudents ? 'checked' : ''} 
+                 onchange="updateSyncSetting('${cls.id}', 'removeMissingStudents', this.checked)"
+                 ${!cls.syncEnabled ? 'disabled' : ''}>
+        </td>
+        <td>
+          <button class="btn" onclick="syncClass('${cls.id}')" 
+                  ${!cls.classroomCourseId ? 'disabled' : ''}>
+            Sync Now
+          </button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  function updateSyncSetting(classId, setting, value) {
+    google.script.run
+      .withSuccessHandler(() => {
+        // Update local state
+        const cls = CLASSES.find(c => c.id === classId);
+        if (cls) {
+          cls[setting] = value;
+          // If sync is disabled, also disable remove missing
+          if (setting === 'syncEnabled' && !value) {
+            cls.removeMissingStudents = false;
+            renderTable(); // Re-render to update checkboxes
+          }
+        }
+      })
+      .withFailureHandler(error => {
+        alert(`Error updating setting: ${error.message}`);
+        loadSettings(); // Reload to reset state
+      })
+      .api_updateSyncSettings({
+        classId: classId,
+        syncEnabled: setting === 'syncEnabled' ? value : CLASSES.find(c => c.id === classId)?.syncEnabled,
+        removeMissingStudents: setting === 'removeMissingStudents' ? value : CLASSES.find(c => c.id === classId)?.removeMissingStudents
+      });
+  }
+
+  function syncClass(classId) {
+    const cls = CLASSES.find(c => c.id === classId);
+    if (!cls || !cls.classroomCourseId) {
+      alert('This class is not linked to Google Classroom.');
+      return;
+    }
+
+    if (!confirm(`Sync "${cls.name}"? This will update enrollments based on the current Classroom roster.`)) {
+      return;
+    }
+
+    byId('syncBtn').disabled = true;
+    byId('syncBtn').textContent = 'Syncing...';
+
+    google.script.run
+      .withSuccessHandler(result => {
+        showSyncResults([result]);
+        byId('syncBtn').disabled = false;
+        byId('syncBtn').textContent = 'Sync All Enabled';
+      })
+      .withFailureHandler(error => {
+        alert(`Sync failed: ${error.message}`);
+        byId('syncBtn').disabled = false;
+        byId('syncBtn').textContent = 'Sync All Enabled';
+      })
+      .api_gc_syncClassWithRemoval(cls.classroomCourseId, cls.removeMissingStudents);
+  }
+
+  function syncAll() {
+    const enabledClasses = CLASSES.filter(c => c.syncEnabled && c.classroomCourseId);
+    if (enabledClasses.length === 0) {
+      alert('No classes are enabled for sync.');
+      return;
+    }
+
+    if (!confirm(`Sync ${enabledClasses.length} enabled classes? This will update enrollments based on current Classroom rosters.`)) {
+      return;
+    }
+
+    byId('syncBtn').disabled = true;
+    byId('syncBtn').textContent = 'Syncing...';
+
+    google.script.run
+      .withSuccessHandler(result => {
+        showSyncResults(result.results);
+        byId('syncBtn').disabled = false;
+        byId('syncBtn').textContent = 'Sync All Enabled';
+      })
+      .withFailureHandler(error => {
+        alert(`Sync failed: ${error.message}`);
+        byId('syncBtn').disabled = false;
+        byId('syncBtn').textContent = 'Sync All Enabled';
+      })
+      .api_syncAllEnabled();
+  }
+
+  function showSyncResults(results) {
+    const resultsDiv = byId('syncResults');
+    resultsDiv.style.display = 'block';
+    
+    let html = '<div class="sync-summary"><h3>Sync Results</h3><ul>';
+    
+    results.forEach(result => {
+      const statusClass = result.status === 'success' ? 'success' : 'error';
+      html += `<li><strong>${escapeHtml(result.className)}</strong>: <span class="status ${statusClass}">${result.status}</span> - ${escapeHtml(result.message)}</li>`;
+    });
+    
+    html += '</ul></div>';
+    resultsDiv.innerHTML = html;
+  }
+
+  function byId(id) { return document.getElementById(id); }
+  function escapeHtml(text) { return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  // Initialize when page loads
+  init();
+</script>
+</body>
+</html>

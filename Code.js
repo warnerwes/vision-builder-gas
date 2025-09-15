@@ -18,7 +18,8 @@ const SHEET_IDS = {
   MissionSelections: "MissionSelections",
   Teams: "Teams",
   TeamMembers: "TeamMembers",
-  VisionTexts: "VisionTexts", // <— NEW
+  VisionTexts: "VisionTexts",
+  SyncSettings: "SyncSettings", // <— NEW
 };
 
 // Create sheet if missing (headers once)
@@ -41,11 +42,41 @@ function openClassroomImport() {
   SpreadsheetApp.getUi().showModalDialog(html, "Import from Google Classroom");
 }
 
+// Create sync settings sheet if missing
+function ensureSyncSettingsSheet_() {
+  const ss = SpreadsheetApp.getActive();
+  let sh = ss.getSheetByName(SHEET_IDS.SyncSettings);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_IDS.SyncSettings);
+    sh.getRange(1, 1, 1, 6).setValues([
+      [
+        "id",
+        "classId",
+        "classroomCourseId",
+        "className",
+        "syncEnabled",
+        "removeMissingStudents",
+      ],
+    ]);
+    sh.setFrozenRows(1);
+  }
+}
+
+// Open sync settings dialog
+function openSyncSettings() {
+  ensureSyncSettingsSheet_();
+  const html = HtmlService.createHtmlOutputFromFile("SyncSettings")
+    .setWidth(800)
+    .setHeight(600);
+  SpreadsheetApp.getUi().showModalDialog(html, "Classroom Sync Settings");
+}
+
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Vision Builder")
     .addItem("Open Student Web App (link)", "showWebAppLink")
-    .addItem("Import from Classroom…", "openClassroomImport") // NEW: tiny modal
+    .addItem("Classroom Sync Settings…", "openSyncSettings") // NEW: sync settings
+    .addItem("Import from Classroom…", "openClassroomImport") // Legacy import
     .addSeparator()
     .addItem("Build human-friendly VIEW sheets", "buildViews") // NEW: readable joins
     .addItem("Generate missing IDs (all tabs)", "fillMissingIdsAll") // NEW: IDs
@@ -83,6 +114,7 @@ function doGet() {
 // Get bootstrap data for the current student — GLOBAL values, per-class missions, PLUS saved selections
 function api_bootstrap(_opts) {
   const me = getMe_(); // throws if not registered
+  ensureSyncSettingsSheet_(); // Ensure sync settings sheet exists
 
   const enroll = readRows_(SHEET_IDS.Enrollments).filter(
     (e) => e.userId === me.id

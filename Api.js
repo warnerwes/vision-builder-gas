@@ -618,3 +618,313 @@ Return only the final 1–2 sentences. No headings or explanations.
     };
   }
 }
+
+// === SYNC SETTINGS API ===
+
+// Get sync settings for all classes
+function api_getSyncSettings() {
+  const me = getMe_();
+  if (!me || (me.role !== "TEACHER" && me.role !== "ADMIN")) {
+    throw new Error("Teacher only.");
+  }
+
+  ensureSyncSettingsSheet_();
+  const classes = readRows_(SHEET_IDS.Classes);
+  const syncSettings = readRows_(SHEET_IDS.SyncSettings);
+
+  // Merge class data with sync settings
+  const result = classes.map((cls) => {
+    const sync = syncSettings.find((s) => s.classId === cls.id);
+    return {
+      id: cls.id,
+      name: cls.name,
+      type: cls.type,
+      classroomCourseId: cls.classroomCourseId || "",
+      syncEnabled: sync ? sync.syncEnabled === "TRUE" : false,
+      removeMissingStudents: sync
+        ? sync.removeMissingStudents === "TRUE"
+        : false,
+    };
+  });
+
+  return { classes: result };
+}
+
+// Update sync settings
+function api_updateSyncSettings(payload) {
+  const me = getMe_();
+  if (!me || (me.role !== "TEACHER" && me.role !== "ADMIN")) {
+    throw new Error("Teacher only.");
+  }
+
+  const { classId, syncEnabled, removeMissingStudents } = payload || {};
+  if (!classId) {
+    throw new Error("classId required.");
+  }
+
+  ensureSyncSettingsSheet_();
+  const classes = readRows_(SHEET_IDS.Classes);
+  const cls = classes.find((c) => c.id === classId);
+  if (!cls) {
+    throw new Error("Class not found.");
+  }
+
+  updateOrInsert_(SHEET_IDS.SyncSettings, ["classId"], {
+    id: uid_(),
+    classId,
+    classroomCourseId: cls.classroomCourseId || "",
+    className: cls.name,
+    syncEnabled: syncEnabled ? "TRUE" : "FALSE",
+    removeMissingStudents: removeMissingStudents ? "TRUE" : "FALSE",
+  });
+
+  return { ok: true };
+}
+
+// Sync all enabled classes
+function api_syncAllEnabled() {
+  const me = getMe_();
+  if (!me || (me.role !== "TEACHER" && me.role !== "ADMIN")) {
+    throw new Error("Teacher only.");
+  }
+
+  ensureSyncSettingsSheet_();
+  const syncSettings = readRows_(SHEET_IDS.SyncSettings).filter(
+    (s) => s.syncEnabled === "TRUE"
+  );
+
+  const results = [];
+  let totalAdded = 0,
+    totalRemoved = 0,
+    totalUpdated = 0;
+
+  for (const setting of syncSettings) {
+    if (!setting.classroomCourseId) {
+      results.push({
+        className: setting.className,
+        status: "skipped",
+        message: "No Classroom course linked",
+      });
+      continue;
+    }
+
+    try {
+      const result = api_gc_syncClassWithRemoval(
+        setting.classroomCourseId,
+        setting.removeMissingStudents === "TRUE"
+      );
+      results.push({
+        className: setting.className,
+        status: "success",
+        message: result.message,
+        added: result.added || 0,
+        removed: result.removed || 0,
+        updated: result.updated || 0,
+      });
+      totalAdded += result.added || 0;
+      totalRemoved += result.removed || 0;
+      totalUpdated += result.updated || 0;
+    } catch (error) {
+      results.push({
+        className: setting.className,
+        status: "error",
+        message: error.message,
+      });
+    }
+  }
+
+  return {
+    ok: true,
+    results,
+    summary: {
+      totalAdded,
+      totalRemoved,
+      totalUpdated,
+      totalClasses: syncSettings.length,
+    },
+  };
+}
+
+// Enhanced sync with removal capability
+function api_gc_syncClassWithRemoval(classroomCourseId, removeMissing = false) {
+  const me = getMe_();
+  if (!me || (me.role !== "TEACHER" && me.role !== "ADMIN")) {
+    throw new Error("Teacher only.");
+  }
+
+  if (!classroomCourseId) {
+    throw new Error("classroomCourseId required.");
+  }
+
+  // Get current Classroom roster
+  const course = Classroom.Courses.get(classroomCourseId);
+  if (!course) {
+    throw new Error(`Course not found: ${classroomCourseId}`);
+  }
+
+  const students = _gc_listStudents_(classroomCourseId);
+  const teachers = _gc_listTeachers_(classroomCourseId);
+
+  // Find the class in our system
+  const classes = readRows_(SHEET_IDS.Classes);
+  const cls = classes.find((c) => c.classroomCourseId === classroomCourseId);
+  if (!cls) {
+    throw new Error("Class not found in system. Import first.");
+  }
+
+  // Get current enrollments
+  const currentEnrollments = readRows_(SHEET_IDS.Enrollments).filter(
+    (e) => e.classId === cls.id
+  );
+
+  // Create maps for quick lookup
+  const currentStudentIds = new Set(
+    currentEnrollments
+      .filter((e) => e.roleInClass === "STUDENT")
+      .map((e) => e.userId)
+  );
+
+  const currentTeacherIds = new Set(
+    currentEnrollments
+      .filter((e) => e.roleInClass === "TEACHER")
+      .map((e) => e.userId)
+  );
+
+  // Process users (same as original import)
+  const usersNow = readRows_(SHEET_IDS.Users);
+  const byEmail = new Map(
+    usersNow.map((u) => [String(u.email || "").toLowerCase(), u])
+  );
+  const byGid = new Map(usersNow.map((u) => [String(u.googleId || ""), u]));
+
+  const toInsertUsers = [];
+  const toInsertEnroll = [];
+  const maybeElevate = [];
+  let addedUsers = 0,
+    updatedTeachers = 0,
+    addedEnroll = 0;
+
+  // Helper function (same as original)
+  function resolveUser(entry, roleDefault) {
+    const email = (entry.email || "").toLowerCase();
+    const gid = entry.googleId || "";
+    let u = (email && byEmail.get(email)) || (gid && byGid.get(gid));
+    if (!u) {
+      if (!email && !gid) return null;
+      const id = uid_();
+      const userObj = {
+        id,
+        email: entry.email || "",
+        displayName: entry.name || "",
+        role: roleDefault,
+        gradeLevel: "",
+        googleId: gid || "",
+      };
+      toInsertUsers.push(userObj);
+      u = userObj;
+      if (email) byEmail.set(email, u);
+      if (gid) byGid.set(gid, u);
+      addedUsers++;
+    }
+    return u;
+  }
+
+  // Process teachers
+  const classroomTeacherIds = new Set();
+  teachers.forEach((t) => {
+    const u = resolveUser(t, "TEACHER");
+    if (!u) return;
+    classroomTeacherIds.add(u.id);
+    if (u.role !== "TEACHER" && u.role !== "ADMIN") {
+      maybeElevate.push({ id: u.id, patch: { role: "TEACHER" } });
+      updatedTeachers++;
+    }
+  });
+
+  // Process students
+  const classroomStudentIds = new Set();
+  students.forEach((s) => {
+    const u = resolveUser(s, "STUDENT");
+    if (!u) return;
+    classroomStudentIds.add(u.id);
+  });
+
+  // Insert new users
+  if (toInsertUsers.length) {
+    appendMany_(SHEET_IDS.Users, toInsertUsers);
+  }
+
+  // Update user maps
+  const usersAfter = usersNow.concat(toInsertUsers);
+  const idByEmail = new Map(
+    usersAfter.map((u) => [String(u.email || "").toLowerCase(), u.id])
+  );
+  const idByGid = new Map(
+    usersAfter.map((u) => [String(u.googleId || ""), u.id])
+  );
+
+  // Add missing enrollments
+  classroomTeacherIds.forEach((uid) => {
+    if (!currentTeacherIds.has(uid)) {
+      toInsertEnroll.push({
+        id: uid_(),
+        userId: uid,
+        classId: cls.id,
+        roleInClass: "TEACHER",
+      });
+      addedEnroll++;
+    }
+  });
+
+  classroomStudentIds.forEach((uid) => {
+    if (!currentStudentIds.has(uid)) {
+      toInsertEnroll.push({
+        id: uid_(),
+        userId: uid,
+        classId: cls.id,
+        roleInClass: "STUDENT",
+      });
+      addedEnroll++;
+    }
+  });
+
+  // Insert new enrollments
+  if (toInsertEnroll.length) {
+    appendMany_(SHEET_IDS.Enrollments, toInsertEnroll);
+  }
+
+  // Apply role elevations
+  maybeElevate.forEach((upd) =>
+    updateRowById_(SHEET_IDS.Users, upd.id, upd.patch)
+  );
+
+  // Remove missing students if requested
+  let removedEnrollments = 0;
+  if (removeMissing) {
+    const toRemove = currentEnrollments.filter((e) => {
+      if (e.roleInClass === "STUDENT" && !classroomStudentIds.has(e.userId)) {
+        return true;
+      }
+      return false;
+    });
+
+    if (toRemove.length > 0) {
+      const toRemoveIds = toRemove.map((e) => e.id);
+      deleteRowsWhere_(SHEET_IDS.Enrollments, (r) =>
+        toRemoveIds.includes(r.id)
+      );
+      removedEnrollments = toRemove.length;
+    }
+  }
+
+  return {
+    ok: true,
+    className: cls.name,
+    added: addedUsers + addedEnroll,
+    removed: removedEnrollments,
+    updated: updatedTeachers,
+    message: `Synced "${cls.name}": +${
+      addedUsers + addedEnroll
+    }, -${removedEnrollments}, ~${updatedTeachers}`,
+  };
+}
