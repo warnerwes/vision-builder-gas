@@ -765,8 +765,24 @@ function api_syncAllEnabled() {
   }
 
   ensureSyncSettingsSheet_();
-  const syncSettings = readRows_(SHEET_IDS.SyncSettings).filter(
-    (s) => s.syncEnabled === "TRUE"
+  const allSyncSettings = readRows_(SHEET_IDS.SyncSettings);
+
+  console.log("All sync settings for sync all:", allSyncSettings);
+
+  // Filter for enabled sync settings with robust boolean checking
+  const syncSettings = allSyncSettings.filter((s) => {
+    const isEnabled =
+      s.syncEnabled === "TRUE" ||
+      s.syncEnabled === true ||
+      s.syncEnabled === "true";
+    console.log(
+      `Sync setting for ${s.className}: syncEnabled=${s.syncEnabled}, isEnabled=${isEnabled}`
+    );
+    return isEnabled;
+  });
+
+  console.log(
+    `Found ${syncSettings.length} enabled sync settings out of ${allSyncSettings.length} total`
   );
 
   const results = [];
@@ -775,7 +791,10 @@ function api_syncAllEnabled() {
     totalUpdated = 0;
 
   for (const setting of syncSettings) {
+    console.log(`Processing sync for class: ${setting.className}`);
+
     if (!setting.classroomCourseId) {
+      console.log(`Skipping ${setting.className}: No Classroom course linked`);
       results.push({
         className: setting.className,
         status: "skipped",
@@ -785,10 +804,22 @@ function api_syncAllEnabled() {
     }
 
     try {
+      const removeMissing =
+        setting.removeMissingStudents === "TRUE" ||
+        setting.removeMissingStudents === true ||
+        setting.removeMissingStudents === "true";
+
+      console.log(
+        `Syncing ${setting.className} with removeMissing=${removeMissing}`
+      );
+
       const result = api_gc_syncClassWithRemoval(
         setting.classroomCourseId,
-        setting.removeMissingStudents === "TRUE"
+        removeMissing
       );
+
+      console.log(`Sync result for ${setting.className}:`, result);
+
       results.push({
         className: setting.className,
         status: "success",
@@ -801,6 +832,7 @@ function api_syncAllEnabled() {
       totalRemoved += result.removed || 0;
       totalUpdated += result.updated || 0;
     } catch (error) {
+      console.log(`Error syncing ${setting.className}:`, error);
       results.push({
         className: setting.className,
         status: "error",
@@ -808,6 +840,8 @@ function api_syncAllEnabled() {
       });
     }
   }
+
+  console.log("Sync all completed. Results:", results);
 
   return {
     ok: true,
@@ -1006,6 +1040,49 @@ function api_gc_syncClassWithRemoval(classroomCourseId, removeMissing = false) {
 }
 
 // === CLASSROOM COURSE MANAGEMENT ===
+
+// Helper functions for Google Classroom API
+function _gc_listStudents_(courseId) {
+  const out = [];
+  let pageToken = null;
+  do {
+    const res = Classroom.Courses.Students.list(courseId, {
+      pageSize: 100,
+      pageToken,
+    });
+    (res.students || []).forEach((s) => {
+      const p = s.profile || {};
+      out.push({
+        email: p.emailAddress || "",
+        name: (p.name && p.name.fullName) || p.id || "",
+        googleId: p.id || "",
+      });
+    });
+    pageToken = res.nextPageToken;
+  } while (pageToken);
+  return out;
+}
+
+function _gc_listTeachers_(courseId) {
+  const out = [];
+  let pageToken = null;
+  do {
+    const res = Classroom.Courses.Teachers.list(courseId, {
+      pageSize: 50,
+      pageToken,
+    });
+    (res.teachers || []).forEach((t) => {
+      const p = t.profile || {};
+      out.push({
+        email: p.emailAddress || "",
+        name: (p.name && p.name.fullName) || p.id || "",
+        googleId: p.id || "",
+      });
+    });
+    pageToken = res.nextPageToken;
+  } while (pageToken);
+  return out;
+}
 
 // Get available Google Classroom courses
 function api_getAvailableClassroomCourses() {
