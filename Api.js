@@ -567,9 +567,9 @@ OUTPUT REQUIREMENTS (STRICT):
 - Keep language simple, humble, and positive.
 
 Examples (style only):
-- "We believe in kindness and perseverance, and we will live with these values so that the people around us feel supported, grow in courage, and use their gifts to strengthen families."
+- "We believe in kindness and perseverance, and we will live with these values so that our teammates feel supported, grow in courage, and use their gifts to strengthen their families."
 - "We want to build a life of trust and creativity where friends, teammates, and families are encouraged to learn, work together, and make lasting good in the world."
-- "We value service and respect, and we will use them to bring hope and strength to others so that together we create places of belonging and growth."
+- "We value service and respect, and we will use them to bring hope and strength to others so that together we create families of belonging and growth."
 
 Return only the final 1–2 sentences. No headings or explanations.
 `.trim();

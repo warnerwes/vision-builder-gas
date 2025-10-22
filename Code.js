@@ -369,7 +369,7 @@ OUTPUT REQUIREMENTS (STRICT):
 - Use strong, everyday language (e.g., “I want to build…,” “I will live with…,” “I believe in…”).
 - Avoid vague or abstract openings like “I imagine…” or “I dream of…”.
 - Focus on one or two values expressed simply (not long lists).
-- Keep the impact personal and relatable (friends, family, classmates, neighbors, teammates).
+- Keep the impact personal and relatable (friends, family, classmates, teammates).
 - Do not include tasks, habits, or checklists.
 - Keep language simple, humble, and positive.
 
@@ -377,9 +377,9 @@ Examples (style only):
 - “A world where every student is encouraged to discover their gifts, supported in their struggles, and celebrated not for perfection but for growth.”
 - “A generation that grows up with courage to do what is right, humility to keep learning, and perseverance to keep building when the world feels broken.”
 - “Families and teams that live with integrity, where love, fairness, and forgiveness create belonging and strength that last beyond any single achievement.”
-- “I believe in kindness and perseverance, and I will live with these values so that the people around me feel supported, grow in courage, and use their gifts to strengthen families and communities.”
-- “I want to build a life of trust and creativity where friends, teammates, and neighbors are encouraged to learn, work together, and make lasting good in the world.”
-- “I value service and respect, and I will use them to bring hope and strength to others so that together we create places of belonging and growth.”
+- “I believe in kindness and perseverance, and I will live with these values so that the people around me feel supported, grow in courage, and use their gifts to strengthen families.”
+- “I want to build a life of trust and creativity where friends, teammates, and families are encouraged to learn, work together, and make lasting good in the world.”
+- “I value service and respect, and I will use them to bring hope and strength to others so that together we create families of belonging and growth.”
 
 Return only the final 1–2 sentences. No headings or explanations.
 
